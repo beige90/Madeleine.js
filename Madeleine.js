@@ -1,13 +1,86 @@
 (function() {
 
-  var DRAW_START        = "StartDraw";
-  var PARSE_START       = "StartParse";
-  var DATA_GET_SUCCESS  = "DataReceived";
-  var AJAX_SUCCESS      = "AjaxDataReceived";
-  var AJAX_FAIL         = "AjaxFailed";
-  var DONE_DRAW         = "DrawFinished";
-  var PARSE_SUCCESS     = "ParseSTLDone";
-  var INVALID_DRAW_TYPE = "InvalidDrawType";
+  // Message alias
+  var SAY_HI                = "START";
+  var DONE_LOAD             = "LoadDone";
+  var TYPE_CHECK            = "TypeCheck";
+  var DONE_TYPE_CHECK       = "TypeCheckDone";
+  var UNKNOWN_FILE_TYPE     = "UnknownFileType";
+  var PARSE_PROCESS         = "ParsingBegin";
+  var PARSE_SUCCESS         = "ParseSTLDone";
+  var WORK_QUEUED           = "WorkQueued";
+  var FLUSH_QUEUE           = "QueueFlushed";
+  var PROCESS_QUEUE         = "QueueProcess";
+  var DRAW_START            = "StartDraw";
+  var PARSE_START           = "StartParse";
+  var DATA_GET_SUCCESS      = "DataReceived";
+  var AJAX_SUCCESS          = "AjaxDataReceived";
+  var AJAX_FAIL             = "AjaxFailed";
+  var DONE_DRAW             = "DrawFinished";
+  var INVALID_TARGET        = "TargetInvalid";
+  var INVALID_DRAW_TYPE     = "InvalidDrawType";
+  var FILEAPI_NOT_SUPPORTED = "NoFileAPI";
+
+  // Custom Data Reader.
+  // Caution: May exceeds the size limit.
+  var DataReader = function(binary) {
+    this.idx = 0; // in bytes
+    this.data = binary;
+    this.buffer = null;
+    this.reader = new DataView(binary); 
+    this.littleEndian = true;
+
+    // Helper functions
+    this.skip         = function(idx) { this.idx += idx };
+    this.reset        = function() { this.idx = 0 };
+    this.getLength    = function() { return this.data.byteLength };
+    this.getCurrIndex = function() { return this.idx };
+
+    // Simply get the data at specified index.
+    this.getInt8      = function(idx) { return this.reader.getInt8(idx, this.littleEndian) };
+    this.getInt16     = function(idx) { return this.reader.getInt16(idx, this.littleEndian) };
+    this.getInt32     = function(idx) { return this.reader.getInt32(idx, this.littleEndian) };
+    this.getUInt8     = function(idx) { return this.reader.getuint8(idx, this.littleEndian) };
+    this.getUInt16    = function(idx) { return this.reader.getUint16(idx, this.littleEndian) };
+    this.getUInt32    = function(idx) { return this.reader.getUint32(idx, this.littleEndian) };
+    this.getFloat32   = function(idx) { return this.reader.getFloat32(idx, this.littleEndian) };
+    this.getFloat64   = function(idx) { return this.reader.getFloat64(idx, this.littleEndian) };
+
+    // Read the data from the current index.
+    // After reading the data, the index moves as much the data read.
+    this.readInt8 = function() { 
+      this.buffer = this.reader.getInt8(this.idx, this.littleEndian);
+      this.idx += 1; return this.buffer;
+    };
+    this.readInt16 = function() { 
+      this.buffer = this.reader.getInt16(this.idx, this.littleEndian);
+      this.idx += 2; return this.buffer;
+    };
+    this.readInt32 = function() { 
+      this.buffer = this.reader.getInt32(this.idx, this.littleEndian);
+      this.idx += 4; return this.buffer;
+    };
+    this.readUInt8 = function() { 
+      this.buffer = this.reader.getUint8(this.idx, this.littleEndian);
+      this.idx += 1; return this.buffer;
+    };
+    this.readUInt16 = function() { 
+      this.buffer = this.reader.getUint16(this.idx, this.littleEndian);
+      this.idx += 2; return this.buffer;
+    };
+    this.readUInt32 = function() { 
+      this.buffer = this.reader.getUint32(this.idx, this.littleEndian);
+      this.idx += 4; return this.buffer;
+    };
+    this.readFloat32 = function() { 
+      this.buffer = this.reader.getFloat32(this.idx, this.littleEndian);
+      this.idx += 4; return this.buffer;
+    };
+    this.readFloat64 = function() { 
+      this.buffer = this.reader.getFloat64(this.idx, this.littleEndian);
+      this.idx += 8; return this.buffer;
+    };
+  };
 
   window.Madeleine = function(target) {
 
@@ -15,16 +88,28 @@
 
     // Check if target exists.
     if (!document.getElementById(target)) {
-      console.log("Madeleine must take valid DOM Element as its target.");
+      Lily.log(INVALID_TARGET);
       return null;
     }
 
     Madeleine = function(target) {
+
+      this.id = Lily.push(this);
+
+      this.queue = [];
       
       this.model = null;
       this.targetId = target;
+      this.targetType = null;
       this.target = document.getElementById(target);
-      this.target.innerHTML = "";
+
+      if (this.target.tagName.toLowerCase() == "input" && this.target.type.toLowerCase() == "file") {
+        this.addChangeEventHandler();
+        this.targetType = "fileinput";
+      } else {
+        this.target.innerHTML = "";
+        this.targetType = "container";
+      }
 
       this.scene = null;
       this.camera = null;
@@ -38,23 +123,47 @@
       this.rotatable = null;
       this.rotatePerFrame = 0.005;
 
+      this.width = null;
+      this.height = null;
       this.verticalFOV = 100;
       this.nearFieldDistance = 1;
-      this.farFieldDistance = 100000;
+      this.farFieldDistance = 10000;
       this.canvasSizeRatio = 1;
 
+      Lily.log(SAY_HI);
+
+      this.init();
+
+    };
+
+    Madeleine.prototype.enqueue = function(work) {
+      this.queue.push(work);
+      Lily.log(WORK_QUEUED, this.queue.length);
+    };
+
+    Madeleine.prototype.flushQueue = function() {
+      this.queue = [];
+      Lily.log(FLUSH_QUEUE);
+    };
+
+    Madeleine.prototype.processQueue = function() {
+      var queuecount, i;
+      queuecount = this.queue.length;
+      for (i = 0; i < queuecount; i++) {
+        Lily.log(PROCESS_QUEUE, ( 100 * (i+1) / queuecount )+"%");
+        this.queue[i]();
+      }
+      Lily.log(FLUSH_QUEUE);
     };
 
     Madeleine.prototype.init = function() {
 
-      var width, height;
-
       // Get target width and height
       if (document.defaultView && document.defaultView.getComputedStyle)
-      width = parseFloat(document.defaultView.getComputedStyle(container,null).getPropertyValue('width'));
+      this.width = parseFloat(document.defaultView.getComputedStyle(this.target,null).getPropertyValue('width'));
       else
-      width = parseFloat(container.currentStyle.width);
-      height  = width * this.canvasSizeRatio;
+      this.width = parseFloat(this.target.currentStyle.width);
+      this.height  = this.width * this.canvasSizeRatio;
 
       // Basic THREE.js setup
       this.scene = new THREE.Scene();
@@ -66,30 +175,70 @@
       ); 
 
       // Tilt point of view
-      this.camera.position.z = 50;
+      this.camera.position.z = 70;
       this.camera.position.y = 0;
       this.scene.add(this.camera);
 
       // Add lights
-      this.directionalLight = new Three.DirectionalLight(0xFFFFFF, 0.8);
+      this.directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8);
       this.directionalLight.position.x = 0;
       this.directionalLight.position.y = 0;
       this.directionalLight.position.z = 1;
       this.directionalLight.position.normalize();
-      this.scene.add(directionalLight);      
+      this.scene.add(this.directionalLight);
+
+      Lily.log(DONE_LOAD);
 
     };
 
-    Madeleine.prototype.parseBinarySTL = function() {
+    Madeleine.prototype.checkSTLType = function(reader) {
+      Lily.log(TYPE_CHECK);
+
+      // NOTE:
+      //    Because STL files don't provide any information whether they are ASCII or binary,
+      //    We have to distinguish them by looking up the file structure.
+      //      - REFERENCE: http://en.wikipedia.org/wiki/STL_(file_format)
+
+      //    STL binary file starts with 80-character header.
+      //    (If a file starts with "solid" (literally), it's mostly accepted as an ASCII STL file)
+      //    After header, 4 bytes unsigned ingeter follows. (number of triangular facets in the file)
+
+      //    Now the data (triangular facets) starts, where each facet consists of 50 bytes.
+      //      First 12 bytes     : 32-bit normal vector
+      //      Following 36 bytes : 32-bit vertex for 3 coordinates (X|Y|Z)
+      //      Last 2 bytes       : short unsigned integer for "attribute byte count"
+
+      //    So if the file is Binary STL file, then the size must be
+      //    80 + 4 + 50 * number of triangular facets
+
+      reader.skip(80);
+      var dataSize = 80 + 4 + 50 * reader.readUInt32(); // reader.readUInt32() == number of facets
+      if (dataSize == reader.getLength()) return "BIN"; // It's Binary STL file
+      else return "ASCII"; // It's ASCII STL file
+    };
+
+    Madeleine.prototype.parseModel = function() {
       Lily.log(PARSE_START);
 
       this.geometry = new THREE.Geometry();
-      var dataview = new DataView(this.model);
+      var reader = new DataReader(this.model);
 
+      // Check STL File type and parse it.
+      switch(this.checkSTLType(reader)) {
+        case "BIN":
+          Lily.log(DONE_TYPE_CHECK);
+          this.parseBinarySTL(reader);
+          break;
+        case "ASCII":
+          Lily.log(DONE_TYPE_CHECK);
+          this.parseASCIISTL();
+          break;
+        default:
+          Lily.log(UNKNOWN_FILE_TYPE);
+          break;
+      }
 
-      // TODO Parse STL file
-
-
+      // Generate mesh.
       this.mesh = new THREE.Mesh(
         this.geometry,
         new THREE.MeshLambertMaterial({
@@ -99,30 +248,130 @@
         })
       );
 
+      // Parsing finished.
       this.scene.add(this.mesh);
+      this.mesh.rotation.x = 5;
+    };
+
+    Madeleine.prototype.parseBinarySTL = function(reader) {
+      var facets, normal, i, j;
+
+      Lily.log(PARSE_PROCESS);
+
+      reader.reset(); // start from the beginning of the file
+      reader.skip(80); // skip header
+      facets = reader.readUInt32(); // number of triangular facets
+
+      // Iterate triangular facets
+      for (i = 0; i < facets; i++) {
+        // Read normal vector
+        normal = new THREE.Vector3(
+          reader.readFloat32(),
+          reader.readFloat32(),
+          reader.readFloat32()
+        );
+        // Get vertices for each coordinate
+        for (j = 0; j < 3; j++) {
+          this.geometry.vertices.push(
+            new THREE.Vector3(
+              reader.readFloat32(),
+              reader.readFloat32(),
+              reader.readFloat32()
+            )
+          );
+        }
+        // Get a new face from the vertices and the normal
+        this.geometry.faces.push(
+          new THREE.Face3(
+            i * 3,      // Vertex A index
+            i * 3 + 1,  // Vertex B index
+            i * 3 + 2,  // Vertex C index
+            normal      // Normal vector
+          )
+        );
+        // Skip the attribute byte count
+        // TODO Some programs save color information here.
+        // Find a way to distinguish color, and implement it.
+        reader.readUInt16();
+      }
+
+      // Parsing done. Compute the normals.
+      this.geometry.computeFaceNormals();
+      Lily.log(PARSE_SUCCESS);
+    };
+
+    Madeleine.prototype.parseASCIISTL = function() {
+      var data = this.model;
+
+      // To parse the ASCII STL file, we need to read the data itself.
+      // First, Remove the structure. The file is written as below.
+      // After removing the structure, begin reading the data.
+
+      //  - ASCII STL File Structure:
+      //      solid name
+      //      facet normal ni nj nk
+      //          outer loop
+      //              vertex v1x v1y v1z
+      //              vertex v2x v2y v2z
+      //              vertex v3x v3y v3z
+      //          endloop
+      //      endfacet
+      //      endsolid name
+
+      // TODO Remove file structure
+
+      // TODO Read data
 
       Lily.log(PARSE_SUCCESS);
     };
 
+    Madeleine.prototype.addChangeEventHandler = function() {
+      var input = this.target,
+          handler = (function(_this) {
+            return function() {
+              var files, file, i;
+              files = this.files;
+              if (files.length) {
+                for (i = 0; i < files.length; i++) {
+                  file = files[i];
+                  _this.draw('file', file);
+                }
+              }
+            };
+          })(this);
+      if (input.addEventListener) {
+        input.addEventListener('change', handler, false);
+      } else if (input.attachEvent) {
+        input.attachEvent('onchange', handler);
+      } else {
+        input['onchange'] = handler;
+      }
+    };
+
     Madeleine.prototype.getBinaryFromBlob = function(file) {
-      var reader = new FileReader();
-
-      reader.onload = function() {
-        Lily.log(DATA_GET_SUCCESS);
-        this.model = reader.result;
-      };
-
-      reader.readAsArrayBuffer(file);
+      if (Detector.fileapi) {
+        var reader = new FileReader();
+        reader.onload = (function(_this) {
+          return function() {
+            Lily.log(DATA_GET_SUCCESS);
+            _this.model = reader.result;
+            _this.processQueue();
+          };
+        })(this);
+        reader.readAsArrayBuffer(file);
+      } else {
+        Lily.log(FILEAPI_NOT_SUPPORTED);
+      }
     };
 
     Madeleine.prototype.getBinaryFromUrl = function(url) {
-
       var xhr = new XMLHttpRequest();
 
       xhr.onreadystatechange = function() {
         if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
           Lily.log(AJAX_SUCCESS);
           this.model = xhr.response;
+          this.processQueue();
         }
       };
 
@@ -134,11 +383,9 @@
       xhr.open("GET", url, true);
       xhr.responseType = "arraybuffer";
       xhr.send(null);
-
     };
 
     Madeleine.prototype.draw = function(type, data) {
-
       // Log start
       Lily.log(DRAW_START);
 
@@ -152,30 +399,43 @@
           Lily.log(INVALID_DRAW_TYPE, type);break;
       }
       
-      // Parse STL Binary data
-      this.parseBinarySTL();
+      this.enqueue((function(_this) {
+        return function() {
+          // Parse STL Binary data
+          _this.parseModel();
 
-      // Render parsed data
-      this.renderer = Detector.webgl ? new THREE.WebGLRenderer(
-        preserveDrawingBuffer: true,
-        alpha: true
-      ) : new THREE.CanvasRenderer(); 
+          // Render parsed data
+          _this.renderer = Detector.webgl ? new THREE.WebGLRenderer({
+            preserveDrawingBuffer: true,
+            alpha: true
+          }) : new THREE.CanvasRenderer(); 
 
-      this.renderer.setSize(width, height);
-      this.target.appendChild(this.renderer.domElement);
+          _this.renderer.setSize(_this.width, _this.height);
+          if (_this.targetType == "fileinput") _this.target.parentNode.appendChild(_this.renderer.domElement);
+          else _this.target.appendChild(_this.renderer.domElement);
 
-      // Run animation
-      this.play();
-
+          // Run animation
+          _this.play();
+        };
+      })(this));
     };
 
     Madeleine.prototype.play = function() {
       this.rotatable = true;
-      this.rotateModel();
+      this.animate(this);
     };
 
     Madeleine.prototype.rotateModel = function() {
-      // TODO Rotate 3D model
+      // Rotate 3D model
+      if (this.mesh) this.mesh.rotation.z += this.rotatePerFrame;
+      this.renderer.render(this.scene, this.camera);
+    };
+
+    Madeleine.prototype.animate = function(_this) {
+      if (_this.rotatable) {
+        requestAnimationFrame(function(){_this.animate(_this)});
+        _this.rotateModel();
+      }
     };
 
     Madeleine.prototype.stop = function() {
@@ -186,33 +446,59 @@
 
   };
 
-  // Lily helps madeleine to parse stl, log message to console, etc.
+  // Lily helps madeleine.
   window.Lily = (function() {
 
     var Lily;
 
     Lily = function() {
+      this.verbose = 3;
+      this.sisters = [];
+    };
 
-      // Initialize
+    Lily.prototype.push = function(madeleine) {
+      this.sisters.push(madeleine);
+      return this.sisters.length-1;
+    };
 
+    Lily.prototype.get = function(index) {
+      return this.sisters[index];
     };
 
     Lily.prototype.log = function(type, info) {
       var errPrefix = "[ERR] Madeleine: "; 
       var logPrefix = "[LOG] Madeleine: ";
-      var messageType = {
+      var description = info ? info : ""; 
+      var messageList = {
         // Normal log messages
-        StartDraw         : logPrefix + "Start rendering 3D model...",
-        StartParse        : logPrefix + "Start parsing stl data...",
-        DataReceived      : logPrefix + "Successfully loaded file.",
-        AjaxDataReceived  : logPrefix + "Packaged received.",
-        ParseSTLDone      : logPrefix + "Parsing STL file done.",
-        DrawFinished      : logPrefix + "Drawing STL file done.",
-        // Error log messages
-        AjaxFailed        : errPrefix + "There was a problem in receiving stl file.",
-        InvalidDrawType   : errPrefix + "Invalid type to draw: "
+        // VERBOSE LEVEL 1
+        START             : { verbose: 1, message: logPrefix + "Hi, I'm Madeleine!" },
+        LoadDone          : { verbose: 1, message: logPrefix + "I'm ready to play." },
+        DrawFinished      : { verbose: 1, message: logPrefix + "I finished drawing STL file." },
+        // VERBOSE LEVEL 2
+        StartDraw         : { verbose: 2, message: logPrefix + "I started rendering 3D model." },
+        StartParse        : { verbose: 2, message: logPrefix + "I started parsing the STL file." },
+        ParsingBegin      : { verbose: 2, message: logPrefix + "Parsing STL data..." },
+        ParseSTLDone      : { verbose: 2, message: logPrefix + "I finished parsing STL file." },
+        DataReceived      : { verbose: 2, message: logPrefix + "The file is successfully loaded." },
+        AjaxDataReceived  : { verbose: 2, message: logPrefix + "The Ajax data is successfully received." },
+        // VERBOSE LEVEL 3 (TOO talkative, DEBUGGING ONLY)
+        WorkQueued        : { verbose: 3, message: logPrefix + "I got a new work: " },
+        QueueFlushed      : { verbose: 3, message: logPrefix + "I don't have any work now." },
+        QueueProcess      : { verbose: 3, message: logPrefix + "I'm doing my work..." },
+        TypeCheck         : { verbose: 3, message: logPrefix + "I'm checking the stl file type..." },
+        TypeCheckDone     : { verbose: 3, message: logPrefix + "I finished checking the file type." },
+        // Error log messages (MUST BE VERBOSE LEVEL 1)
+        UnknownFileType   : { verbose: 1, message: errPrefix + "STL file is neither binary nor ASCII format." },
+        TargetInvalid     : { verbose: 1, message: errPrefix + "Target must be a valid DOM Element." },
+        NoFileAPI         : { verbose: 1, message: errPrefix + "This browser doesn't support file API." },
+        AjaxFailed        : { verbose: 1, message: errPrefix + "There was a problem in receiving stl file." },
+        InvalidDrawType   : { verbose: 1, message: errPrefix + "Invalid type to draw: " }
       };
-      console.log(messageType[type] + (info != '' ? info : ''));
+
+      // Deliver the message (...If it's not too loud)
+      if (this.verbose < messageList[type].verbose) return;
+      else console.log(messageList[type].message + description);
     };
 
     return new Lily(); 
