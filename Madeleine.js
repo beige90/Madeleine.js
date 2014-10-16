@@ -334,7 +334,7 @@
               if (files.length) {
                 for (i = 0; i < files.length; i++) {
                   file = files[i];
-                  _this.draw('file', file);
+                  _this.draw('upload', file);
                 }
               }
             };
@@ -367,13 +367,15 @@
     Madeleine.prototype.getBinaryFromUrl = function(url) {
       var xhr = new XMLHttpRequest();
 
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
-          Lily.log(AJAX_SUCCESS);
-          this.model = xhr.response;
-          this.processQueue();
-        }
-      };
+      xhr.onreadystatechange = (function(_this) {
+        return function() {
+          if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
+            Lily.log(AJAX_SUCCESS);
+            _this.model = xhr.response;
+            _this.processQueue();
+          }
+        };
+      })(this);
 
       xhr.onerror = function(e) {
         Lily.log(AJAX_FAIL);
@@ -391,9 +393,9 @@
 
       // Check input type and get STL Binary data 
       switch (type) {
-        case "file":
+        case "upload":
           this.getBinaryFromBlob(data);break;
-        case "url":
+        case "file":
           this.getBinaryFromUrl(data);break;
         default:
           Lily.log(INVALID_DRAW_TYPE, type);break;
@@ -452,7 +454,7 @@
     var Lily;
 
     Lily = function() {
-      this.verbose = 3;
+      this.verbose = 1;
       this.sisters = [];
     };
 

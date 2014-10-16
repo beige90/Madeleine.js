@@ -1,4 +1,59 @@
-Madeleine.js
-============
+# Madeleine.js
 
-Pure javaScript 3D Model Viewer (.STL Format). It uses THREE.js (http://github.com/mrdoob/three.js) as its 3D Engine.
+Madeleine.js is a 3D Model parser & renderer for STL files (ASCII and binary both). 
+
+Madeleine.js uses [Three.js](http://github.com/mrdoob/three.js) as its 3D Engine, and is based on the demo code of [tonylukasavage](https://github.com/tonylukasavage/jsstl). If you read through his code first, you will have a big picture of how Madeleine.js is designed.
+
+Madeleine.js is smart enough to distinguish whether stl files are ASCII or binary~~, and is able to create and handle multiple 3D model viewers(fixing bugs...)~~. Also, Madeleine.js helps you to immediately render any stl file as you upload.
+
+## DEMO
+
+[Download](https://github.com/JinJunho/Madeleine.js/archive/master.zip) or Clone this repository and locate it on your web server root. You can check working demo by visiting **repo/examples/index.html** from your browser. Download any stl file and see how it works well!
+
+## Getting Started 
+
+First, include libraries and Madeleine.js into your code.
+
+```html
+<script src="js/libraries/detector.js"></script>
+<script src="js/libraries/three.min.js"></script>
+<script src="js/Madeleine.js"></script>
+```
+
+### 1. Immediate File Upload
+
+```html
+<form id="myForm" name="myForm">
+    <input type="file" id="myFile" name="myFile">
+</form>
+
+<script>
+    window.onload = function(){
+        var madeleine = new Madeleine('myFile'); // id of file input
+    }; 
+</script>
+```
+
+### 2. Render from file path
+
+```html
+<div id="target"></div>
+
+<script>
+    window.onload = function(){
+        var madeleine = new Madeleine('target'); // id of target div
+        madeleine.draw(
+            'file', // specify draw type
+            'path/to/file.stl' // data path
+        ); 
+    }; 
+</script>
+```
+
+## License
+
+This code is under [MIT License](http://choosealicense.com/licenses/mit/). You can do anything you want with my code, as long as you leave the attribution. It will be grateful if you contact me for interesting ideas to do with Madeleine.js. I'm willing to co-work with you!
+
+## Who am I?
+
+My name is [Junho Jin](http://plrg.kaist.ac.kr/jjh) and I'm a newbie programmer :)

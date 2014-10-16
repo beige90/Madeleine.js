@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Madeleine.js Working Example</title>
+
+  <script src="../libraries/stats.js"></script>
+  <script src="../libraries/detector.js"></script>
+  <script src="../libraries/three.min.js"></script>
+  <script src="../Madeleine.js"></script>
+</head>
+<body>
+<header>
+  <h1><a href="https://github.com/JinJunho/Madeleine.js">Madeleine.js</a> File Upload & Viewer Example</h1>
+</header>
+
+<section>
+  <form>
+    <input type="file" id="files" name="files" multiple>
+  </form>
+</section>
+
+<script>
+window.onload = function(){
+  var madeleine1 = new Madeleine('files');
+}; 
+</script>
+
+</body>
+</html>
