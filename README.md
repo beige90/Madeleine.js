@@ -12,9 +12,10 @@ Madeleine.js is smart enough to distinguish whether stl files are ASCII or binar
 
 ## Getting Started 
 
-First, include libraries and Madeleine.js into your code.
+First, include libraries and Madeleine.js into your code. If you want prettier viewer, include Madeleine.css too.
 
 ```html
+<link rel="stylesheet" href="css/Madeleine.css">
 <script src="js/libraries/detector.js"></script>
 <script src="js/libraries/three.min.js"></script>
 <script src="js/Madeleine.js"></script>
@@ -28,7 +29,7 @@ All you need to do is simply asking Lily (Madeleine's sister) to get ready for f
 <form id="myForm" name="myForm">
     <input type="file" id="myForm" name="myForm" multiple>
 </form>
-<div id="target"></div>
+<div id="target" class="madeleine"></div>
 
 <script>
 window.onload = function(){
@@ -42,7 +43,7 @@ window.onload = function(){
 If you know the url or path to the stl file, call Madeleine directly with type (in this case, 'file') and the file path. Don't forget to pass the Id of target Element when you initialize Madeleine!
 
 ```html
-<div id="target"></div>
+<div id="target" class="madeleine"></div>
 
 <script>
 window.onload = function(){

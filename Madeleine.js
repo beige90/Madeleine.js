@@ -118,6 +118,7 @@
 
       this.directionalLight = null;
 
+      this.rotating = null;
       this.rotatable = null;
       this.rotatePerFrame = 0.005;
 
@@ -161,11 +162,16 @@
     Madeleine.prototype.init = function() {
 
       // Get target width and height
-      if (document.defaultView && document.defaultView.getComputedStyle)
-      this.width = parseFloat(document.defaultView.getComputedStyle(this.target,null).getPropertyValue('width'));
-      else
-      this.width = parseFloat(this.target.currentStyle.width);
-      this.height  = this.width * this.canvasSizeRatio;
+      if (document.defaultView && document.defaultView.getComputedStyle) {
+        this.height = parseFloat(document.defaultView.getComputedStyle(this.target,null).getPropertyValue('height'));
+        this.width  = parseFloat(document.defaultView.getComputedStyle(this.target,null).getPropertyValue('width'));
+        this.canvasSizeRatio = this.width/this.height;
+      }
+      else {
+        this.height = parseFloat(this.target.currentStyle.height);
+        this.width  = parseFloat(this.target.currentStyle.width);
+        this.canvasSizeRatio = this.width/this.height;
+      }
 
       // Basic THREE.js setup
       this.scene = new THREE.Scene();
@@ -407,10 +413,14 @@
       })(this));
     };
 
-    // Set rotate flag to true, and start animation
+    // If not rotating, set rotate flag to true and start animation
+    // Do nothing, otherwise.
     Madeleine.prototype.play = function() {
-      this.rotatable = true;
-      this.animate(this);
+      if (!this.rotating) {
+        this.rotatable = true;
+        this.rotating = true;
+        this.animate(this);
+      }
     };
 
     // Start rotating model
@@ -430,6 +440,15 @@
     // Stop rotating model
     Madeleine.prototype.stop = function() {
       this.rotatable = false;
+      this.rotating = false;
+    };
+
+    Madeleine.prototype.faster = function(speed) {
+      this.rotatePerFrame *= speed;
+    };
+
+    Madeleine.prototype.slower = function(speed) {
+      this.rotatePerFrame /= speed;
     };
 
     return new Madeleine(target);
