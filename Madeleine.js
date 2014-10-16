@@ -1,5 +1,6 @@
 (function() {
 
+
   // Message alias
   var SAY_HI                = "START";
   var DONE_LOAD             = "LoadDone";
@@ -17,9 +18,12 @@
   var AJAX_SUCCESS          = "AjaxDataReceived";
   var AJAX_FAIL             = "AjaxFailed";
   var DONE_DRAW             = "DrawFinished";
+  var EVENT_ATTACHED        = "EventAttached";
+  var INVALID_INPUT         = "InputInvalid";
   var INVALID_TARGET        = "TargetInvalid";
   var INVALID_DRAW_TYPE     = "InvalidDrawType";
   var FILEAPI_NOT_SUPPORTED = "NoFileAPI";
+
 
   // Custom Data Reader.
   // Caution: May exceeds the size limit.
@@ -82,6 +86,8 @@
     };
   };
 
+
+  // Madeleine constructor
   window.Madeleine = function(target) {
 
     var Madeleine;
@@ -100,16 +106,8 @@
       
       this.model = null;
       this.targetId = target;
-      this.targetType = null;
       this.target = document.getElementById(target);
-
-      if (this.target.tagName.toLowerCase() == "input" && this.target.type.toLowerCase() == "file") {
-        this.addChangeEventHandler();
-        this.targetType = "fileinput";
-      } else {
-        this.target.innerHTML = "";
-        this.targetType = "container";
-      }
+      this.target.innerHTML = "";
 
       this.scene = null;
       this.camera = null;
@@ -136,16 +134,19 @@
 
     };
 
+    // add work to queue
     Madeleine.prototype.enqueue = function(work) {
       this.queue.push(work);
       Lily.log(WORK_QUEUED, this.queue.length);
     };
 
+    // flush all works from queue
     Madeleine.prototype.flushQueue = function() {
       this.queue = [];
       Lily.log(FLUSH_QUEUE);
     };
 
+    // do all works in queue
     Madeleine.prototype.processQueue = function() {
       var queuecount, i;
       queuecount = this.queue.length;
@@ -156,6 +157,7 @@
       Lily.log(FLUSH_QUEUE);
     };
 
+    // Initialize viewer
     Madeleine.prototype.init = function() {
 
       // Get target width and height
@@ -325,32 +327,12 @@
       Lily.log(PARSE_SUCCESS);
     };
 
-    Madeleine.prototype.addChangeEventHandler = function() {
-      var input = this.target,
-          handler = (function(_this) {
-            return function() {
-              var files, file, i;
-              files = this.files;
-              if (files.length) {
-                for (i = 0; i < files.length; i++) {
-                  file = files[i];
-                  _this.draw('upload', file);
-                }
-              }
-            };
-          })(this);
-      if (input.addEventListener) {
-        input.addEventListener('change', handler, false);
-      } else if (input.attachEvent) {
-        input.attachEvent('onchange', handler);
-      } else {
-        input['onchange'] = handler;
-      }
-    };
-
+    // Get arrayBuffer from Blob
     Madeleine.prototype.getBinaryFromBlob = function(file) {
       if (Detector.fileapi) {
         var reader = new FileReader();
+
+        // onload function
         reader.onload = (function(_this) {
           return function() {
             Lily.log(DATA_GET_SUCCESS);
@@ -358,6 +340,8 @@
             _this.processQueue();
           };
         })(this);
+
+        // read arrayBuffer from Blob
         reader.readAsArrayBuffer(file);
       } else {
         Lily.log(FILEAPI_NOT_SUPPORTED);
@@ -367,6 +351,7 @@
     Madeleine.prototype.getBinaryFromUrl = function(url) {
       var xhr = new XMLHttpRequest();
 
+      // Callback function
       xhr.onreadystatechange = (function(_this) {
         return function() {
           if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
@@ -401,30 +386,39 @@
           Lily.log(INVALID_DRAW_TYPE, type);break;
       }
       
+      // Wait until data is fully loaded
       this.enqueue((function(_this) {
         return function() {
-          // Parse STL Binary data
+          // When data ready, parse it. 
           _this.parseModel();
 
-          // Render parsed data
+          // Render parsed data.
           _this.renderer = Detector.webgl ? new THREE.WebGLRenderer({
             preserveDrawingBuffer: true,
             alpha: true
           }) : new THREE.CanvasRenderer(); 
 
           _this.renderer.setSize(_this.width, _this.height);
-          if (_this.targetType == "fileinput") _this.target.parentNode.appendChild(_this.renderer.domElement);
-          else _this.target.appendChild(_this.renderer.domElement);
+          _this.target.appendChild(_this.renderer.domElement);
 
-          // Run animation
+          // Run animation.
           _this.play();
         };
       })(this));
     };
 
+    // Set rotate flag to true, and start animation
     Madeleine.prototype.play = function() {
       this.rotatable = true;
       this.animate(this);
+    };
+
+    // Start rotating model
+    Madeleine.prototype.animate = function(_this) {
+      if (_this.rotatable) {
+        requestAnimationFrame(function(){_this.animate(_this)});
+        _this.rotateModel();
+      }
     };
 
     Madeleine.prototype.rotateModel = function() {
@@ -433,13 +427,7 @@
       this.renderer.render(this.scene, this.camera);
     };
 
-    Madeleine.prototype.animate = function(_this) {
-      if (_this.rotatable) {
-        requestAnimationFrame(function(){_this.animate(_this)});
-        _this.rotateModel();
-      }
-    };
-
+    // Stop rotating model
     Madeleine.prototype.stop = function() {
       this.rotatable = false;
     };
@@ -451,32 +439,71 @@
   // Lily helps madeleine.
   window.Lily = (function() {
 
-    var Lily;
+    // Initialize
+    var Lily = function() {
 
-    Lily = function() {
       this.verbose = 1;
       this.sisters = [];
+
     };
 
+    // Attach Madeleine to file input
+    Lily.prototype.ready = function(inputId, targetId) {
+      // takes file input id, target div id
+      var target = document.getElementById(inputId);
+      if (target.tagName.toLowerCase() == "input" && target.type.toLowerCase() == "file") this.onChange(target, targetId);
+      else this.log(INVALID_INPUT);
+    };
+
+    // When user uploads files, call Madeleine immediately for each stl file.
+    Lily.prototype.onChange = function(input, targetId) {
+      // event handler
+      // create Madeleine for each file
+      var onChangeHandler = function() {
+        var i, files = this.files;
+        if (files.length) {
+          for (i = 0; i < files.length; i++) {
+            var madeleine = new Madeleine(targetId);
+            madeleine.draw('upload', files[i]);
+          }
+        }
+      };
+
+      // attach event handler
+      if (input.addEventListener) input.addEventListener('change', onChangeHandler, false);
+      else if (input.attachEvent) input.attachEvent('onchange', onChangeHandler);
+      else input['onchange'] = onChangeHandler;
+
+      this.log(EVENT_ATTACHED);
+
+    };
+
+    // Put madeleine to madeleine list
     Lily.prototype.push = function(madeleine) {
       this.sisters.push(madeleine);
       return this.sisters.length-1;
     };
 
+    // Get madeleine of id 'index'
     Lily.prototype.get = function(index) {
       return this.sisters[index];
     };
 
+    // Log message to console
     Lily.prototype.log = function(type, info) {
+
       var errPrefix = "[ERR] Madeleine: "; 
       var logPrefix = "[LOG] Madeleine: ";
       var description = info ? info : ""; 
       var messageList = {
+
         // Normal log messages
         // VERBOSE LEVEL 1
         START             : { verbose: 1, message: logPrefix + "Hi, I'm Madeleine!" },
         LoadDone          : { verbose: 1, message: logPrefix + "I'm ready to play." },
         DrawFinished      : { verbose: 1, message: logPrefix + "I finished drawing STL file." },
+        EventAttached     : { verbose: 1, message: logPrefix + "I'm ready. Upload files." },
+
         // VERBOSE LEVEL 2
         StartDraw         : { verbose: 2, message: logPrefix + "I started rendering 3D model." },
         StartParse        : { verbose: 2, message: logPrefix + "I started parsing the STL file." },
@@ -484,23 +511,28 @@
         ParseSTLDone      : { verbose: 2, message: logPrefix + "I finished parsing STL file." },
         DataReceived      : { verbose: 2, message: logPrefix + "The file is successfully loaded." },
         AjaxDataReceived  : { verbose: 2, message: logPrefix + "The Ajax data is successfully received." },
+
         // VERBOSE LEVEL 3 (TOO talkative, DEBUGGING ONLY)
         WorkQueued        : { verbose: 3, message: logPrefix + "I got a new work: " },
         QueueFlushed      : { verbose: 3, message: logPrefix + "I don't have any work now." },
         QueueProcess      : { verbose: 3, message: logPrefix + "I'm doing my work..." },
         TypeCheck         : { verbose: 3, message: logPrefix + "I'm checking the stl file type..." },
         TypeCheckDone     : { verbose: 3, message: logPrefix + "I finished checking the file type." },
+
         // Error log messages (MUST BE VERBOSE LEVEL 1)
         UnknownFileType   : { verbose: 1, message: errPrefix + "STL file is neither binary nor ASCII format." },
         TargetInvalid     : { verbose: 1, message: errPrefix + "Target must be a valid DOM Element." },
+        InputInvalid      : { verbose: 1, message: errPrefix + "Please select file input as a target." },
         NoFileAPI         : { verbose: 1, message: errPrefix + "This browser doesn't support file API." },
         AjaxFailed        : { verbose: 1, message: errPrefix + "There was a problem in receiving stl file." },
         InvalidDrawType   : { verbose: 1, message: errPrefix + "Invalid type to draw: " }
+
       };
 
       // Deliver the message (...If it's not too loud)
       if (this.verbose < messageList[type].verbose) return;
       else console.log(messageList[type].message + description);
+
     };
 
     return new Lily(); 

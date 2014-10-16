@@ -19,11 +19,12 @@
   <form>
     <input type="file" id="files" name="files" multiple>
   </form>
+  <div id="target"></div>
 </section>
 
 <script>
 window.onload = function(){
-  var madeleine1 = new Madeleine('files');
+  Lily.ready('files', 'target');
 }; 
 </script>
 
