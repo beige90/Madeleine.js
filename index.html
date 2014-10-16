@@ -54,12 +54,12 @@
         <p>First, include libraries and Madeleine.js into your code. If you want prettier viewer, include Madeleine.css too.</p>
 
         <div class="highlight highlight-html">
-          <pre>
-            <span class="nt">&lt;link</span> <span class="na">rel=</span><span class="s">"stylesheet"</span> <span class="na">href=</span><span class="s">"css/Madeleine.css"</span><span class="nt">&gt;</span>
-            <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/libraries/detector.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-            <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/libraries/three.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-            <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/Madeleine.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-          </pre>
+<pre>
+  <span class="nt">&lt;link</span> <span class="na">rel=</span><span class="s">"stylesheet"</span> <span class="na">href=</span><span class="s">"css/Madeleine.css"</span><span class="nt">&gt;</span>
+  <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/libraries/detector.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+  <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/libraries/three.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+  <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/Madeleine.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+</pre>
         </div>
 
         <h3><a name="1-immediate-file-upload" class="anchor" href="#1-immediate-file-upload"><span class="octicon octicon-link"></span></a>1. Immediate File Upload</h3>
@@ -67,18 +67,18 @@
         <p>All you need to do is simply asking Lily (Madeleine's sister) to get ready for file upload. She will take care of taking files, parsing, rendering and showing them.</p>
 
         <div class="highlight highlight-html">
-          <pre>
-            <span class="nt">&lt;form</span> <span class="na">id=</span><span class="s">"myForm"</span> <span class="na">name=</span><span class="s">"myForm"</span><span class="nt">&gt;</span>
-              <span class="nt">&lt;input</span> <span class="na">type=</span><span class="s">"file"</span> <span class="na">id=</span><span class="s">"myForm"</span> <span class="na">name=</span><span class="s">"myForm"</span> <span class="na">multiple</span><span class="nt">&gt;</span>
-            <span class="nt">&lt;/form&gt;</span>
-            <span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"target"</span> <span class="na">class=</span><span class="s">"madeleine"</span><span class="nt">&gt;&lt;/div&gt;</span>
+<pre>
+  <span class="nt">&lt;form</span> <span class="na">id=</span><span class="s">"myForm"</span> <span class="na">name=</span><span class="s">"myForm"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;input</span> <span class="na">type=</span><span class="s">"file"</span> <span class="na">id=</span><span class="s">"myForm"</span> <span class="na">name=</span><span class="s">"myForm"</span> <span class="na">multiple</span><span class="nt">&gt;</span>
+  <span class="nt">&lt;/form&gt;</span>
+  <span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"target"</span> <span class="na">class=</span><span class="s">"madeleine"</span><span class="nt">&gt;&lt;/div&gt;</span>
 
-            <span class="nt">&lt;script&gt;</span>
-              <span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(){</span>
-                <span class="nx">Lily</span><span class="p">.</span><span class="nx">ready</span><span class="p">(</span><span class="s1">'files'</span><span class="p">,</span> <span class="s1">'target'</span><span class="p">);</span> <span class="c1">// id of file input, id of container element</span>
-              <span class="p">};</span> 
-            <span class="nt">&lt;/script&gt;</span>
-          </pre>
+  <span class="nt">&lt;script&gt;</span>
+    <span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(){</span>
+      <span class="nx">Lily</span><span class="p">.</span><span class="nx">ready</span><span class="p">(</span><span class="s1">'files'</span><span class="p">,</span> <span class="s1">'target'</span><span class="p">);</span> <span class="c1">// id of file input, id of container element</span>
+    <span class="p">};</span> 
+  <span class="nt">&lt;/script&gt;</span>
+</pre>
         </div>
 
         <h3><a name="2-render-from-file-path" class="anchor" href="#2-render-from-file-path"><span class="octicon octicon-link"></span></a>2. Render from file path</h3>
@@ -86,19 +86,19 @@
         <p>If you know the url or path to the stl file, call Madeleine directly with type (in this case, 'file') and the file path. Don't forget to pass the Id of target Element when you initialize Madeleine!</p>
 
         <div class="highlight highlight-html">
-          <pre>
-            <span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"target"</span> <span class="na">class=</span><span class="s">"madeleine"</span><span class="nt">&gt;&lt;/div&gt;</span>
+<pre>
+  <span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"target"</span> <span class="na">class=</span><span class="s">"madeleine"</span><span class="nt">&gt;&lt;/div&gt;</span>
 
-            <span class="nt">&lt;script&gt;</span>
-              <span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(){</span>
-                <span class="kd">var</span> <span class="nx">madeleine</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Madeleine</span><span class="p">(</span><span class="s1">'target'</span><span class="p">);</span> <span class="c1">// id of target div</span>
-                <span class="nx">madeleine</span><span class="p">.</span><span class="nx">draw</span><span class="p">(</span>
-                  <span class="s1">'file'</span><span class="p">,</span> <span class="c1">// specify draw type</span>
-                  <span class="s1">'path/to/file.stl'</span> <span class="c1">// data path</span>
-                <span class="p">);</span> 
-              <span class="p">};</span> 
-            <span class="nt">&lt;/script&gt;</span>
-          </pre>
+  <span class="nt">&lt;script&gt;</span>
+    <span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(){</span>
+      <span class="kd">var</span> <span class="nx">madeleine</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Madeleine</span><span class="p">(</span><span class="s1">'target'</span><span class="p">);</span> <span class="c1">// id of target div</span>
+      <span class="nx">madeleine</span><span class="p">.</span><span class="nx">draw</span><span class="p">(</span>
+        <span class="s1">'file'</span><span class="p">,</span> <span class="c1">// specify draw type</span>
+        <span class="s1">'path/to/file.stl'</span> <span class="c1">// data path</span>
+      <span class="p">);</span> 
+    <span class="p">};</span> 
+  <span class="nt">&lt;/script&gt;</span>
+</pre>
         </div>
 
         <h2><a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
