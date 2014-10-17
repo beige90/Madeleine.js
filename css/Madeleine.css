@@ -1,4 +1,5 @@
 .madeleine {
+  position: relative;
   background: transparent;
   height: 400px;
   width: 640px;
