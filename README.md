@@ -9,14 +9,16 @@ Madeleine.js is smart enough to distinguish whether stl files are ASCII or binar
 ## DEMO
 
 Visit [DEMO Website](http://jinjunho.github.io/Madeleine.js/) to see the demo!
+
 For developers, [download](https://github.com/JinJunho/Madeleine.js/archive/master.zip) or clone this repository and locate it on your web server root. You can check working demo by visiting **repo/examples/index.html** from your browser. Download any stl file and see how well it works!
 
 ## Getting Started 
 
-First, include libraries and Madeleine.js into your code. If you want prettier viewer, include Madeleine.css too.
+First, include libraries and Madeleine.js into your code. If you want a prettier viewer, include Madeleine.css too.
 
 ```html
 <link rel="stylesheet" href="css/Madeleine.css">
+<script src="js/libraries/stats.js"></script>
 <script src="js/libraries/detector.js"></script>
 <script src="js/libraries/three.min.js"></script>
 <script src="js/Madeleine.js"></script>
