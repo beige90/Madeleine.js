@@ -2,13 +2,14 @@
 
 Madeleine.js is a 3D Model parser & renderer for STL files (ASCII and binary both). 
 
-Madeleine.js uses [Three.js](http://github.com/mrdoob/three.js) as its 3D Engine, and is based on the demo code of [tonylukasavage](https://github.com/tonylukasavage/jsstl). If you read through his code first, you will have a big picture of how Madeleine.js is designed.
+Madeleine.js uses [Three.js](http://github.com/mrdoob/three.js) as its 3D Engine, and was inspired by the demo code of [tonylukasavage](https://github.com/tonylukasavage/jsstl).
 
-Madeleine.js is smart enough to distinguish whether stl files are ASCII or binary, and is able to create and handle multiple 3D model viewers(fixing bugs...). Also, Madeleine.js helps you to immediately render any stl file as you upload.
+Madeleine.js is smart enough to distinguish whether stl files are ASCII or binary, and is able to create and handle multiple 3D model viewers (WARNING: Multiple rendering may slow down the speed). Also, Madeleine.js helps you to immediately render any stl file as you upload!
 
 ## DEMO
 
-[Download](https://github.com/JinJunho/Madeleine.js/archive/master.zip) or Clone this repository and locate it on your web server root. You can check working demo by visiting **repo/examples/index.html** from your browser. Download any stl file and see how well it works!
+Visit [DEMO Website](http://jinjunho.github.io/Madeleine.js/) to see the demo!
+For developers, [download](https://github.com/JinJunho/Madeleine.js/archive/master.zip) or clone this repository and locate it on your web server root. You can check working demo by visiting **repo/examples/index.html** from your browser. Download any stl file and see how well it works!
 
 ## Getting Started 
 
@@ -23,7 +24,7 @@ First, include libraries and Madeleine.js into your code. If you want prettier v
 
 ### 1. Immediate File Upload
 
-All you need to do is simply asking Lily (Madeleine's sister) to get ready for file upload. She will take care of taking files, parsing, rendering and showing them.
+All you need to do is simply asking Lily (is Madeleine's sister) to get ready for file upload. She will take care of taking files, parsing, rendering and visualizing them.
 
 ```html
 <form id="myForm" name="myForm">
@@ -33,14 +34,17 @@ All you need to do is simply asking Lily (Madeleine's sister) to get ready for f
 
 <script>
 window.onload = function(){
-    Lily.ready('files', 'target'); // id of file input, id of container element
+    Lily.ready({
+        target: 'target'  // target div id
+        file: 'files',  // file input id
+    });
 }; 
 </script>
 ```
 
 ### 2. Render from file path
 
-If you know the url or path to the stl file, call Madeleine directly with type (in this case, 'file') and the file path. Don't forget to pass the Id of target Element when you initialize Madeleine!
+If you know the url or path to the stl file, call Madeleine directly with target div id and the file path.
 
 ```html
 <div id="target" class="madeleine"></div>
@@ -49,8 +53,8 @@ If you know the url or path to the stl file, call Madeleine directly with type (
 window.onload = function(){
     var madeleine = new Madeleine('target'); // id of target div
     madeleine.draw(
-        'file', // specify draw type
-        'path/to/file.stl' // data path
+        target: 'target', // target div id
+        data: 'path/to/file.stl' // data path
     ); 
 }; 
 </script>

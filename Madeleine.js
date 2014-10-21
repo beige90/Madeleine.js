@@ -1,24 +1,31 @@
-
-
 /**
- * Madeleine.js, Pure JavaScript STL Parser & Renderer. 
- * Madeleine.js constists of three part: DataReader, Madeleine and Lily. DataReader is a helper function
- * to read binary data, which is a customized version of DataView. Lily is a helper Object that manages
- * created Madeleines and logs messages to console. Madeleine is the part that deals with actual parsing,
- * rendering and showing your stl files. Customize them however you want.
- * This project is under MIT License (see the LICENSE file for details). You are allowed to do anything
- * with this code, as long as you leave the attribution (MUST!). It will be glad if you contact me for 
- * any bug you found or interesting ideas to do with Madeleine.js. I'm willing to co-work with you!
+ * @author    Junho Jin[junho.jin@kaist.ac.kr] | https://github.com/JinJunho
+ * @version   0.9.5
  *
- * @version   0.9.1
- * @author    Junho Jin
- * @contact   junho.jin@kaist.ac.kr
- * @source    https://github.com/JinJunho/Madeleine.js
+ * [Project] Madeleine.js, Pure JavaScript STL Parser & Renderer. 
+ *
+ * [Description] Madeleine.js constists of three part: DataReader, Madeleine and Lily. 
+ * DataReader is a helper function to read binary data, which is a customized version
+ * of DataView. Lily is a helper Object that manages created Madeleines and logs 
+ * messages to console. Madeleine is the part that deals with actual parsing, rendering
+ * and showing your stl files. Customize them however you want. This project is under
+ * MIT License (see the LICENSE file for details). You are allowed to do anything with
+ * this code, as long as you leave the attribution (MUST!). It will be glad if you 
+ * contact me for any bug you found or interesting ideas to do with Madeleine.js.
+ * I'm willing to co-work with you!
  */
 
 
 (function() {
 
+  // Reference: http://threejs.org/examples/js/loaders/STLLoader.js 
+  // In case DataView is not supported from the browser, create it.
+  // if (typeof DataView === 'undefined') {
+  //   var newScript = document.createElement('script');
+  //   newScript.setAttribute("type", "text/javascript");
+  //   newScript.setAttribute("src", "libraries/dataview.js");
+  //   document.getElementsByTagName('head').appendChild(newScript);
+  // }
 
   // Message alias
   var SAY_HI                = "START";
@@ -28,7 +35,6 @@
   var LOG_ENABLED           = "EnableLog";
   var TYPE_CHECK            = "TypeCheck";
   var DONE_TYPE_CHECK       = "TypeCheckDone";
-  var UNKNOWN_FILE_TYPE     = "UnknownFileType";
   var PARSE_PROCESS         = "ParsingBegin";
   var PARSE_SUCCESS         = "ParseSTLDone";
   var WORK_QUEUED           = "WorkQueued";
@@ -52,7 +58,6 @@
   var INVALID_OPTION2       = "OptionInvalid2";
   var INVALID_DRAW_TYPE     = "InvalidDrawType";
   var FILEAPI_NOT_SUPPORTED = "NoFileAPI";
-
 
   // Custom Data Reader.
   // Caution: May exceeds the size limit.
@@ -119,7 +124,30 @@
   // Madeleine constructor
   window.Madeleine = function(options) {
 
+
     var Madeleine;
+
+
+    // Constants for default setting
+    var OBJECT_MATERIAL   = "skin"; 
+    var OBJECT_STATUS     = true;
+    var OBJECT_COLOR      = 0x009999; 
+    var OBJECT_PLANE      = false;
+    var OBJECT_PLANEWIRE  = false;
+
+    var CAMERA_SIGHT     = 45;
+    var CAMERA_NEARFIELD = 1;
+    var CAMERA_FARFIELD  = 100000;
+
+    var VIEWER_THEME  = "madeleine";
+    var VIEWER_PREFIX = "madeleine_";
+    var VIEWER_CREATE = true;
+    var VIEWER_HEIGHT = 400;
+    var VIEWER_WIDTH  = 640;
+
+    var USER_ROTATE_SENSITIVITY = 0.009;
+    var USER_ZOOM_SENSITIVITY   = 10;
+
 
     // Necessary option check 
     if (!document.getElementById(options.target)) {
@@ -130,75 +158,101 @@
       return null;
     }
 
+
     // Construct new Madeleine
     Madeleine = function(options) {
 
       // Internal properties
-      this.__id        = Lily.push(this);
-      this.__targetID  = options.target;
-      this.__workQueue = [];
-      this.__timer     = {start: (new Date).getTime(), end: null};
+      this.__id           = Lily.push(this);
+      this.__containerID  = options.target;
+      this.__timer        = {start: (new Date).getTime(), end: null};
+      this.__workQueue    = [];
 
-      this.__model = null;
+      // About 3d model
+      this.__data = null;
       this.__stats = null;
+      this.__object = null;
 
-      this.__mesh             = null;
-      this.__scene            = null;
-      this.__camera           = null;
-      this.__viewer           = null;
-      this.__geometry         = null;
-      this.__renderer         = null;
+      // About visualization
+      this.__pov    = null;
+      this.__plane  = null;
+      this.__scene  = null;
+      this.__camera = null;
+      this.__viewer = null;
+
       this.__ambientLight     = null;
       this.__directionalLight = null;
 
-      this.__width           = null;
-      this.__height          = null;
-      this.__canvasSizeRatio = 1;
+      // About rendering
+      this.__geometry = null;
+      this.__renderer = null;
 
-      this.__zoomable     = true;
+      // About camera view
+      this.__width     = null;
+      this.__height    = null;
+      this.__sizeRatio = 1;
+
+      // About user interaction
       this.__zoomOutLimit = 180;
       this.__zoomInLimit  = 0
+      this.__zoomable     = true;
 
-      this.__rotatable  = null;
-      this.__rotating   = null;
+      this.__rotatable  = true;
+      this.__rotating   = false;
 
-      // Crucial properties
-      this.type = options.type ? options.type : 'file';
+      // Crucial properties to render 3d model
       this.data = options.data;
-      this.target = document.getElementById(this.__targetID);
-      this.target.innerHTML = "";
+      this.type = options.type ? options.type : 'file';
+      this.container = document.getElementById(this.__containerID);
+      this.container.innerHTML = "";
 
       // User configuration 
-      this.options = Lily.extend({}, { // default option
-        material   : 'skin',
-        showStatus : true,
-        modelColor : 0x009999,
+      this.options = Lily.extend({}, { // Default option
+        material   : OBJECT_MATERIAL,
+        showStatus : OBJECT_STATUS,
+        objectColor : OBJECT_COLOR,
         viewer : {
-          create  : true,         // Create new viewer?
-          height  : 400,          // Viewer height
-          width   : 640,          // Viewer width
-          theme   : "madeleine",  // Viewer theme
-          prefix  : "madeleine_", // Viewer id prefix
+          create  : VIEWER_CREATE,  // Create new viewer?
+          height  : VIEWER_HEIGHT,  // Viewer height
+          width   : VIEWER_WIDTH,   // Viewer width
+          theme   : VIEWER_THEME,   // Viewer theme
+          prefix  : VIEWER_PREFIX,  // Viewer id prefix
         },
         camera : {
-          sight : 75,     // Vertical Field of View
-          near  : 1,      // Near Field Distance
-          far   : 1000,   // Far Field Distance
+          sight : CAMERA_SIGHT,     // Vertical Field of View
+          near  : CAMERA_NEARFIELD, // Near Field Distance
+          far   : CAMERA_FARFIELD,  // Far Field Distance
         },
-        rotateSensitivity : 0.009,
-        zoomSensitivity : 10,
+        rotateSensitivity : USER_ROTATE_SENSITIVITY,
+        zoomSensitivity : USER_ZOOM_SENSITIVITY,
       }, options);
 
-      // Adjust material, camera settings and sensitivities to have proper values 
-      this.checkMaterial();
-      this.adjustFocalPoint();
-      this.adjustZoomSensitivity();
-      this.adjustRotateSensitivity();
+      // Event Listeners
+      this.scrollHandler = (function(scope) {
+        return function(e) {
+          var zoomFactor = e.wheelDelta ? e.wheelDelta/40 : (e.detail ? -e.detail : 0); 
+          var delta = scope.__camera.position.z + zoomFactor;
+          scope.__camera.position.z = delta;
+          scope.__camera.updateProjectionMatrix();
+          e.preventDefault();
+        };
+      })(this);
+
+      // Check if option values are correct
+      this.adjustUserConfiguration();
 
       // Initialize rendering
       Lily.log(SAY_HI);
       this.init();
 
+    };
+
+    // Adjust material, camera settings and sensitivities to have proper values 
+    Madeleine.prototype.adjustUserConfiguration = function() {
+      this.adjustRotateSensitivity();
+      this.adjustZoomSensitivity();
+      this.adjustFocalPoint();
+      this.checkMaterial();
     };
 
     // Check material 
@@ -210,36 +264,32 @@
 
     // Adjust camera settings to fit into proper range 
     Madeleine.prototype.adjustFocalPoint = function() {
-      var defaultSight = 75;
-      var defaultNearField = 1;
-      var defaultFarField = 1000;
-
       var sight = this.options.camera.sight;
       var near = this.options.camera.near;
       var far = this.options.camera.far;
 
       if (sight && typeof sight === "number" && 75 <= sight && sight <= 1000) return;
-      else this.options.camera.sight = defaultSight;
+      else this.options.camera.sight = CAMERA_SIGHT;
       if (near && typeof near === "number" && 0 <= near && near <= 1000) return;
-      else this.options.camera.near = defaultNearField;
+      else this.options.camera.near = CAMERA_NEARFIELD;
       if (far && typeof far === "number" && 5000 <= far && far <= 100000) return;
-      else this.options.camera.far = defaultFarField;
+      else this.options.camera.far = CAMERA_FARFIELD;
     };
 
     // Adjust zoom sensitivity to fit into proper range 
     Madeleine.prototype.adjustZoomSensitivity = function() {
-      var defaultSensitivity = 10;
       var intensity = this.options.zoomSensitivity;
+
       if (intensity && typeof intensity === "number" && 0 < intensity && intensity <= 20) return;
-      else this.options.zoomSensitivity = defaultSensitivity;
+      else this.options.zoomSensitivity = USER_ZOOM_SENSITIVITY;
     };
 
     // Adjust rotate sensitivity to fit into proper range 
     Madeleine.prototype.adjustRotateSensitivity = function(intensity) {
-      var defaultSensitivity = 0.009;
       var intensity = this.options.rotateSensitivity;
+
       if (intensity && typeof intensity === "number" && 0 < intensity && intensity < 0.05) return;
-      else this.options.rotateSensitivity = defaultSensitivity;
+      else this.options.rotateSensitivity = USER_ROTATE_SENSITIVITY;
     };
 
     // add work to queue
@@ -258,10 +308,12 @@
     Madeleine.prototype.processQueue = function() {
       var queuecount, i;
       queuecount = this.__workQueue.length;
+
       for (i = 0; i < queuecount; i++) {
         Lily.log(PROCESS_QUEUE, ( 100 * (i+1) / queuecount )+"%");
         this.__workQueue[i]();
       }
+
       Lily.log(FLUSH_QUEUE);
     };
 
@@ -274,30 +326,44 @@
         this.__width  = this.options.viewer.width;
       // Get target width and height, otherwise.
       } else if (document.defaultView && document.defaultView.getComputedStyle) {
-        this.__height = parseFloat(document.defaultView.getComputedStyle(this.target,null).getPropertyValue('height'));
-        this.__width  = parseFloat(document.defaultView.getComputedStyle(this.target,null).getPropertyValue('width'));
+        this.__height = parseFloat(document.defaultView.getComputedStyle(this.container,null).getPropertyValue('height'));
+        this.__width  = parseFloat(document.defaultView.getComputedStyle(this.container,null).getPropertyValue('width'));
       } else {
-        this.__height = parseFloat(this.target.currentStyle.height);
-        this.__width  = parseFloat(this.target.currentStyle.width);
+        this.__height = parseFloat(this.container.currentStyle.height);
+        this.__width  = parseFloat(this.container.currentStyle.width);
       }
 
       // Adjust canvas width/height ratio
-      this.__canvasSizeRatio = this.__width/this.__height;
+      this.__sizeRatio = this.__width / this.__height;
 
-      // Basic THREE.js setup
+      // Create Scene
       this.__scene = new THREE.Scene();
+
+      // Create camera
       this.__camera = new THREE.PerspectiveCamera(
         this.options.camera.sight,
-        this.__canvasSizeRatio,
+        this.__sizeRatio,
         this.options.camera.near,
         this.options.camera.far
       ); 
 
-      // Tilt point of view
-      this.__camera.position.x = 0;
-      this.__camera.position.y = 0;
-      this.__camera.position.z = 70;
+      // Set user's point-of-view and default camera position
+      this.__pov = new THREE.Vector3(0, 0, 0);
+      this.__camera.position.set(0, 0, 0);
       this.__scene.add(this.__camera);
+
+      // Create plane if required
+      if (OBJECT_PLANE) {
+        this.__plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(40, 40),  // plane width x height
+          (OBJECT_PLANEWIRE ?
+            new THREE.MeshBasicMaterial({ color: 0xFFFFFF, wireframe: true }) :
+            new THREE.MeshPhongMaterial({ color: 0xFFFFFF, ambient: 0xFFFFFF, specular: 0xFFFFFF }))
+        );
+        this.__plane.rotation.x = -Math.PI/2;
+        this.__plane.position.y = -0.5;
+        this.__scene.add(this.__plane);
+      }
 
       // Add lights
       this.__directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8);
@@ -328,22 +394,25 @@
       }
       
       // Wait until data is fully loaded
-      this.enqueue((function(_this) {
+      this.enqueue((function(scope) {
         return function() {
           // When data ready, parse and render it. 
-          _this.parseModel();
-          _this.renderModel();
+          scope.parseObject();
+          scope.renderObject();
           Lily.log(ALL_FINISHED);
 
-          _this.__timer.end = (new Date()).getTime();
-          if (_this.options.showStatus) {
-            var consumed = (_this.__timer.end - _this.__timer.start) / 1000;
+          scope.__timer.end = (new Date()).getTime();
+          if (scope.options.showStatus) {
+            var consumed = (scope.__timer.end - scope.__timer.start) / 1000;
             Lily.log(TIME_CONSUMED, consumed);
           }
 
+          // Log status.
+          scope.logStatus();
           // Run animation.
-          _this.logStatus();
-          _this.startAnimation();
+          scope.startAnimation();
+          // Enable zoom.
+          scope.enableZoomAsMouseScroll();
           Lily.log(DONE_DRAW);
         };
       })(this));
@@ -355,11 +424,11 @@
         var reader = new FileReader();
 
         // onload function
-        reader.onload = (function(_this) {
+        reader.onload = (function(scope) {
           return function() {
             Lily.log(DATA_GET_SUCCESS);
-            _this.__model = reader.result;
-            _this.processQueue();
+            scope.__data = reader.result;
+            scope.processQueue();
           };
         })(this);
 
@@ -375,12 +444,12 @@
       var xhr = new XMLHttpRequest();
 
       // Callback function
-      xhr.onreadystatechange = (function(_this) {
+      xhr.onreadystatechange = (function(scope) {
         return function() {
           if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
             Lily.log(AJAX_SUCCESS);
-            _this.__model = xhr.response;
-            _this.processQueue();
+            scope.__data = xhr.response;
+            scope.processQueue();
           }
         };
       })(this);
@@ -396,31 +465,20 @@
     };
 
     // Check type and choose appropriate parsing method
-    Madeleine.prototype.parseModel = function() {
+    Madeleine.prototype.parseObject = function() {
       Lily.log(PARSE_START);
 
-      this.__geometry = new THREE.Geometry();
-      var reader = new DataReader(this.__model);
+      var reader = new DataReader(this.__data);
 
       // Check STL File type and parse it.
-      switch(this.checkSTLType(reader)) {
-        case "BIN":
-          Lily.log(DONE_TYPE_CHECK);
-          this.parseBinarySTL(reader);
-          break;
-        case "ASCII":
-          Lily.log(DONE_TYPE_CHECK);
-          this.parseASCIISTL();
-          break;
-        default:
-          Lily.log(UNKNOWN_FILE_TYPE);
-          break;
-      }
+      if (this.checkSTLType(reader)) this.parseBinarySTL(reader);
+      else this.parseASCIISTL();
     };
 
     // check if stl file is binary or ASCII
     Madeleine.prototype.checkSTLType = function(reader) {
-      Lily.log(TYPE_CHECK);
+
+      var dataSize;
 
       // NOTE:
       //    Because STL files don't provide any information whether they are ASCII or binary,
@@ -439,69 +497,78 @@
       //    So if the file is Binary STL file, then the size must be
       //    80 + 4 + 50 * number of triangular facets
 
+      Lily.log(TYPE_CHECK);
       reader.skip(80);
-      var dataSize = 80 + 4 + 50 * reader.readUInt32(); // reader.readUInt32() == number of facets
-      if (dataSize == reader.getLength()) return "BIN"; // It's Binary STL file
-      else return "ASCII"; // It's ASCII STL file
+      // reader.readUInt32() == number of facets
+      dataSize = 80 + 4 + 50 * reader.readUInt32();
+      Lily.log(DONE_TYPE_CHECK);
+      // true: binary | false: ASCII
+      return dataSize == reader.getLength();
     };
 
     // Parse binary stl file
     Madeleine.prototype.parseBinarySTL = function(reader) {
       var facets, normal, i, j;
+      var vertices, normals, index;
 
       Lily.log(PARSE_PROCESS);
 
-      reader.reset(); // start from the beginning of the file
-      reader.skip(80); // skip header
-      facets = reader.readUInt32(); // number of triangular facets
+      // Point head of reader, and skip the first 80 bytes
+      reader.reset();
+      reader.skip(80);
 
-      // Iterate triangular facets
+      // Get the number of triangular facets, and initialize
+      // normals and vertices with the size of facets.
+      index = 0;
+      facets = reader.readUInt32();
+      normals = new Float32Array(facets * 3 * 3);
+      vertices = new Float32Array(facets * 3 * 3);
+
+      // iterate triangular facets
       for (i = 0; i < facets; i++) {
         // Read normal vector
-        normal = new THREE.Vector3(
-          reader.readFloat32(),
-          reader.readFloat32(),
-          reader.readFloat32()
-        );
+        normal = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
         // Get vertices for each coordinate
         for (j = 0; j < 3; j++) {
-          this.__geometry.vertices.push(
-            new THREE.Vector3(
-              reader.readFloat32(),
-              reader.readFloat32(),
-              reader.readFloat32()
-            )
-          );
+          // Add vertex vector
+          vertices[index]     = reader.readFloat32();
+          vertices[index + 1] = reader.readFloat32();
+          vertices[index + 2] = reader.readFloat32();
+          // Add normal vector
+          normals[index++] = normal[0];
+          normals[index++] = normal[1];
+          normals[index++] = normal[2];
         }
-        // Get a new face from the vertices and the normal
-        this.__geometry.faces.push(
-          new THREE.Face3(
-            i * 3,      // Vertex A index
-            i * 3 + 1,  // Vertex B index
-            i * 3 + 2,  // Vertex C index
-            normal
-          )
-        );
         // Skip the attribute byte count
         // TODO Some programs save color information here.
         // Find a way to distinguish color, and implement it.
         reader.readUInt16();
       }
 
-      // Parsing done. Compute the normals.
-      this.__geometry.computeFaceNormals();
-      this.__geometry.computeBoundingSphere();
-      this.__geometry.center();
+      // Parsing done. Add vertices and normals to geometry.
+      this.__geometry = new THREE.BufferGeometry();
+      this.__geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3 ));
+      this.__geometry.addAttribute('normal', new THREE.BufferAttribute(normals, 3));
       Lily.log(PARSE_SUCCESS);
     };
 
     // Parse ASCII stl file
     Madeleine.prototype.parseASCIISTL = function() {
-      var data = this.__model;
+      var vertexRegExp, normalRegExp, facetRegExp;
+      var normal, face, buff, data = "";
+      var match, rest;
+
+      buff = new Uint8Array(this.__data);
+      for(var i = 0; i < buff.byteLength; i++) {
+        data += String.fromCharCode(buff[i]);
+      }
+      facetRegExp = new RegExp(/facet([\s\S]*?)endfacet/g);
+      normalRegExp = new RegExp(/normal[\s]+([\-+]?[0-9]+\.?[0-9]*(?:[eE][\-+]?[0-9]+)?)+[\s]+([\-+]?[0-9]*\.?[0-9]+(?:[eE][\-+]?[0-9]+)?)+[\s]+([\-+]?[0-9]*\.?[0-9]+(?:[eE][\-+]?[0-9]+)?)+/g);
+      vertexRegExp = new RegExp(/vertex[\s]+([\-+]?[0-9]+\.?[0-9]*(?:[eE][\-+]?[0-9]+)?)+[\s]+([\-+]?[0-9]*\.?[0-9]+(?:[eE][\-+]?[0-9]+)?)+[\s]+([\-+]?[0-9]*\.?[0-9]+(?:[eE][\-+]?[0-9]+)?)+/g);
 
       // To parse the ASCII STL file, we need to read the data itself.
       // First, Remove the structure. The file is written as below.
-      // After removing the structure, begin reading the data.
+      // Match the structure with RegExp, and read the data.
 
       //  - ASCII STL File Structure:
       //      solid name
@@ -514,50 +581,81 @@
       //      endfacet
       //      endsolid name
 
-      // TODO Remove file structure
-
-      // TODO Read data
+      idx = 0;
+      this.__geometry = new THREE.Geometry();
+      while ((match = facetRegExp.exec(data)) !== null) {
+        // Information about a triangular facet
+        rest = match[0];
+        // Get normal vector
+        while ((match = normalRegExp.exec(rest)) !== null) {
+          normal = new THREE.Vector3(
+            parseFloat(match[1]),
+            parseFloat(match[2]),
+            parseFloat(match[3])
+          );
+        }
+        // Get vectors for each vertex
+        while ((match = vertexRegExp.exec(rest)) !== null) {
+          this.__geometry.vertices.push(new THREE.Vector3(
+            parseFloat(match[1]),
+            parseFloat(match[2]),
+            parseFloat(match[3])
+          ));
+        }
+        // Get a face
+        this.__geometry.faces.push(new THREE.Face3(idx++, idx++, idx++, normal));
+      }
 
       Lily.log(PARSE_SUCCESS);
     };
 
-    // Render model
-    Madeleine.prototype.renderModel = function() {
+    // Render object
+    Madeleine.prototype.renderObject = function() {
       // Create renderer
-      if (!this.__mesh) this.createRenderer();
+      if (!this.__object) this.createRenderer();
 
       // Get material
       var material = null;
       if (this.options.material == "skin") {
         material = new THREE.MeshLambertMaterial({
-          color: this.options.modelColor,
+          color: this.options.objectColor,
           shading: THREE.FlatShading,
           doubleSided: true,
           overdraw: true
         });
       } else {
         material = new THREE.MeshBasicMaterial({
-          color: this.options.modelColor,
+          color: this.options.objectColor,
           wireframe: true
         });
       }
 
-      // Generate mesh for model
-      this.__mesh = new THREE.Mesh(this.__geometry, material);
+      // Generate mesh for object
+      this.__object = new THREE.Mesh(this.__geometry, material);
+      this.__geometry.computeBoundingBox();
+      this.__geometry.computeBoundingSphere();
+      this.__geometry.computeVertexNormals();
 
-      // Adjust mesh postion
-      var modelCenterZ = this.__geometry.boundingSphere.center.z; 
-      var coveringSphereRadius = this.__geometry.boundingSphere.radius;
-      this.__mesh.position.z = (modelCenterZ - coveringSphereRadius);
+      // Adjust camera and object to make object fit into screen properly
+      var centerY = parseFloat(0.6 * ( this.__geometry.boundingBox.max.y - this.__geometry.boundingBox.min.y ));
+      var centerZ = parseFloat(0.6 * ( this.__geometry.boundingBox.max.z - this.__geometry.boundingBox.min.z ));
+      var zoomFactor = 1.37 * (125 / this.__geometry.boundingSphere.radius);
+      this.__object.scale.set(zoomFactor, zoomFactor, zoomFactor);
+      this.__object.position.setY(-centerY);
+      this.__object.position.setZ(-centerZ);
+      this.__camera.position.z = 500;
+      this.__camera.updateProjectionMatrix();
+      // this.__camera.position.y = distance/4;
+
 
       // Parsing finished
-      this.__scene.add(this.__mesh);
-      this.__mesh.rotation.x = 5;
+      this.__scene.add(this.__object);
+      this.__object.rotation.x = 5;
     };
 
     // Generate Renderer
     Madeleine.prototype.createRenderer = function() {
-      if (this.__model) {
+      if (this.__data) {
         // Render parsed data.
         this.__renderer = Detector.webgl ? new THREE.WebGLRenderer({
           preserveDrawingBuffer: true,
@@ -581,7 +679,7 @@
         this.__viewer = document.createElement("div");
         this.__viewer.id = this.options.viewer.prefix + this.__id;
         this.__viewer.className = this.options.viewer.theme;
-        this.target.appendChild(this.__viewer);
+        this.container.appendChild(this.__viewer);
         this.__viewer.appendChild(this.__renderer.domElement);
         Lily.log(VIEWER_CREAT);
       }
@@ -590,33 +688,30 @@
     // If not rotating, set rotate flag to true and start animation
     // Do nothing, otherwise.
     Madeleine.prototype.startAnimation = function() {
-      if (!this.__rotating) {
-        this.__rotatable = true;
+      if (this.__rotatable && !this.__rotating) {
         this.__rotating = true;
         this.triggerAnimation(this);
-        this.enableZoomAsMouseScroll();
       }
     };
 
-    // Stop rotating model
+    // Stop rotating object
     Madeleine.prototype.stopAnimation = function() {
       this.options.rotateSensitivity = 0.005;
-      this.__rotatable = false;
       this.__rotating = false;
     };
 
-    // Start rotating model
-    Madeleine.prototype.triggerAnimation = function(_this) {
-      if (_this.__rotatable) {
-        requestAnimationFrame(function(){_this.triggerAnimation(_this)});
-        _this.options.showStatus && _this.__stats.update();
-        _this.rotateModel();
+    // Start rotating object
+    Madeleine.prototype.triggerAnimation = function(scope) {
+      if (scope.__rotatable) {
+        requestAnimationFrame(function(){scope.triggerAnimation(scope)});
+        scope.options.showStatus && scope.__stats.update();
+        scope.rotateObject();
       }
     };
 
-    Madeleine.prototype.rotateModel = function() {
-      // Rotate 3D model
-      if (this.__mesh) this.__mesh.rotation.z += this.options.rotateSensitivity;
+    Madeleine.prototype.rotateObject = function() {
+      // Rotate 3D object
+      if (this.__object) this.__object.rotation.z += this.options.rotateSensitivity;
       this.__renderer.render(this.__scene, this.__camera);
     };
 
@@ -630,38 +725,42 @@
       this.options.rotateSensitivity /= (speed ? speed : 2);
     };
 
+    // Disable Madeline Viewer to be zoomed by mouse scroll
+    Madeleine.prototype.disableZoomAsMouseScroll = function() {
+      var target = this.container;
+      if (target.removeEventListener) {
+        target.removeEventListener('mousewheel', this.scrollHandler, false);
+        target.removeEventListener('DOMMouseScroll', this.scrollHandler, false);
+      } else if (target.detachEvent) {
+        target.detachEvent('onmousewheel', this.scrollHandler);
+        target.detachEvent('onDOMMouseScroll', this.scrollHandler);
+      } else {
+        this.container['onmousewheel'] = function() {};
+        this.container['onDOMMouseScroll'] = function() {};
+      }
+
+    };
+
     // Enable Madeline Viewer to be zoomed by mouse scroll
     Madeleine.prototype.enableZoomAsMouseScroll = function() {
 
       if (!this.__zoomable) return;
 
-      var scrollHandler = (function(_this) {
-        return function(e) {
-          var zoomFactor = e.wheelDelta ? e.wheelDelta/40 : (e.detail ? -e.detail : 0); 
-          var delta = _this.__camera.fov + zoomFactor;
-          if (_this.__zoomInLimit < delta && delta < _this.__zoomOutLimit) {
-            _this.__camera.fov = delta;
-          }
-          _this.__camera.updateProjectionMatrix();
-          e.preventDefault();
-        };
-      })(this);  
-
       // attach event handler
-      if (this.target.addEventListener) {
-        this.target.addEventListener('mousewheel', scrollHandler, false);
-        this.target.addEventListener('DOMMouseScroll', scrollHandler, false); // firefox
-      } else if (this.target.attachEvent) {
-        this.target.attachEvent('mousewheel', scrollHandler);
-        this.target.attachEvent('DOMMouseScroll', scrollHandler);
+      if (this.container.addEventListener) {
+        this.container.addEventListener('mousewheel', this.scrollHandler, false);
+        this.container.addEventListener('DOMMouseScroll', this.scrollHandler, false); // firefox
+      } else if (this.container.attachEvent) {
+        this.container.attachEvent('onmousewheel', this.scrollHandler);
+        this.container.attachEvent('onDOMMouseScroll', this.scrollHandler);
       } else {
-        this.target['onmousewheel'] = scrollHandler;
-        this.target['onDOMMouseScroll'] = scrollHandler;
+        this.container['onmousewheel'] = this.scrollHandler;
+        this.container['onDOMMouseScroll'] = this.scrollHandler;
       }
 
     }; 
 
-    // Manually zoom out model
+    // Manually zoom out object
     Madeleine.prototype.manualZoomOut = function() {
       if (this.__camera.fov + this.options.zoomSensitivity < this.__zoomOutLimit) {
         this.__camera.fov += this.options.zoomSensitivity;
@@ -669,7 +768,7 @@
       }
     };
 
-    // Manually zoom in model
+    // Manually zoom in object
     Madeleine.prototype.manualZoomIn = function() {
       if (this.__camera.fov - this.options.zoomSensitivity > this.__zoomInLimit) {
         this.__camera.fov -= this.options.zoomSensitivity;
@@ -694,9 +793,9 @@
       Lily.log(LOG_DISABLED);
     };
 
-    // Set model color
-    Madeleine.prototype.setModelColor = function(code) {
-      this.options.modelColor = parseInt(color.replace(/\#/g, ''), 16);
+    // Set object color
+    Madeleine.prototype.setObjectColor = function(code) {
+      this.options.objectColor = parseInt(color.replace(/\#/g, ''), 16);
     };
 
     return new Madeleine(options);
@@ -708,6 +807,7 @@
 
     // Initialize
     var Lily = function() {
+      if (!Detector.webgl) Detector.addGetWebGLMessage();
       this.verbose = 2;
       this.sisters = [];
     };
@@ -845,14 +945,17 @@
 
     // When user uploads files, call Madeleine immediately for each stl file.
     Lily.prototype.onFileInputChange = function(input, options) {
+
       // event handler
       var onFileInputChangeHandler = function() {
         var i, files = this.files;
         if (files.length) {
           for (i = 0; i < files.length; i++) {
             // create Madeleine for each file
-            var _options = this.extend({}, options, {type: "upload", data: files[i]});
+            var _options = window.Lily.extend({}, options, {type: "upload", data: files[i]});
             var madeleine = new Madeleine(_options);
+            // hide file input element
+            input.style.display = "none";
           }
         }
       };
@@ -888,7 +991,7 @@
         // Normal log messages
         // VERBOSE LEVEL 1
         START             : { verbose: 1, message: logPrefix + "Hi, I'm Madeleine!" },
-        DrawDone          : { verbose: 1, message: logPrefix + "Voila! You're model is now showing!" },
+        DrawDone          : { verbose: 1, message: logPrefix + "Voila! You're model is now on the screen!" },
         EventAttached     : { verbose: 1, message: logPrefix + "I'm ready. Upload files." },
 
         // VERBOSE LEVEL 2
@@ -919,7 +1022,6 @@
         ViewerLater       : { verbose: 1, message: errPrefix + "Please create viewer after creating renderer." },
         NoFileAPI         : { verbose: 1, message: errPrefix + "This browser doesn't support file API." },
         AjaxFailed        : { verbose: 1, message: errPrefix + "There was a problem in receiving your model data." },
-        UnknownFileType   : { verbose: 1, message: errPrefix + "STL file must be neither binary nor ASCII format." },
         InvalidDrawType   : { verbose: 1, message: errPrefix + "You gave me wrong type to draw: " },
         TargetInvalid     : { verbose: 1, message: errPrefix + "Target must be a valid DOM Element." },
         OptionInvalid     : { verbose: 1, message: errPrefix + "Option must contain target and data." },
