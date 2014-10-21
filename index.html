@@ -133,8 +133,10 @@
 
     <script>
       window.onload = function(){
-        madeleine = new Madeleine('target');
-        madeleine.draw('file', 'models/skull.stl');
+        madeleine = new Madeleine({
+          target: 'target',
+          data: 'models/skull.stl'
+        });
       }; 
     </script>
 
