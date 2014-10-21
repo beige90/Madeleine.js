@@ -6,8 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="description" content="Madeleine.js : Pure javaScript 3D Model Viewer (.STL Format)">
 
+    <link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=Chewy'>
     <link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet.css">
-    <link rel="stylesheet" type="text/css" media="screen" href="../css/Madeleine.css">
 
     <script src="../libraries/stats.js"></script>
     <script src="../libraries/detector.js"></script>
@@ -48,6 +48,16 @@
 
         <h3>Binary STL File</h3>
         <div id="targetA" class="viewer"></div>
+        <div class="theme">
+          <div class="themeButton light"  onclick="mad1.adaptViewerTheme('light');">Light</div>
+          <div class="themeButton lime"   onclick="mad1.adaptViewerTheme('lime');">Lime</div>
+          <div class="themeButton toxic"  onclick="mad1.adaptViewerTheme('toxic');">Toxic</div>
+          <div class="themeButton lego"   onclick="mad1.adaptViewerTheme('lego');">Lego</div>
+          <div class="themeButton cobalt" onclick="mad1.adaptViewerTheme('cobalt');">Cobalt</div>
+          <div class="themeButton soft"   onclick="mad1.adaptViewerTheme('soft');">Soft</div>
+          <div class="themeButton rose"   onclick="mad1.adaptViewerTheme('rose');">Rose</div>
+          <div class="themeButton dark"   onclick="mad1.adaptViewerTheme('dark');">Dark</div>
+        </div>
         <h3>ASCII STL File</h3>
         <div id="targetB" class="viewer"></div>
 
@@ -137,10 +147,10 @@
           target: 'targetA',
           data: '../models/skull.stl'
         });
-        mad2 = new Madeleine({
-          target: 'targetB',
-          data: '../models/treefrog.stl'
-        });
+        // mad2 = new Madeleine({
+        //  target: 'targetB',
+        //  data: '../models/treefrog.stl'
+        //});
       }; 
     </script>
 

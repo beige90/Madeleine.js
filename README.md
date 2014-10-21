@@ -6,6 +6,16 @@ Madeleine.js uses [Three.js](http://github.com/mrdoob/three.js) as its 3D Engine
 
 Madeleine.js is smart enough to distinguish whether stl files are ASCII or binary, and is able to create and handle multiple 3D model viewers (WARNING: Multiple rendering may slow down the speed). Also, Madeleine.js helps you to immediately render any stl file as you upload!
 
+## Features
+
+- Parse, render and visualize STL format files.
+- Automatically distinguish binary and ASCII, and parse it properly.
+- Accept STL file from external url or user file upload.
+- Support rendering multiple models (also multi upload).
+- Provide various themes for model viewer.
+- And more features will be added later!
+
+
 ## DEMO
 
 Visit [DEMO Website](http://jinjunho.github.io/Madeleine.js/) to see the demo!
@@ -14,10 +24,9 @@ For developers, [download](https://github.com/JinJunho/Madeleine.js/archive/mast
 
 ## Getting Started 
 
-First, include libraries and Madeleine.js into your code. If you want a prettier viewer, include Madeleine.css too.
+First, include libraries and Madeleine.js into your code.
 
 ```html
-<link rel="stylesheet" href="css/Madeleine.css">
 <script src="js/libraries/stats.js"></script>
 <script src="js/libraries/detector.js"></script>
 <script src="js/libraries/three.min.js"></script>

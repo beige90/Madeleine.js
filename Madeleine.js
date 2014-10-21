@@ -18,7 +18,7 @@
 
 (function() {
 
-  // Reference: http://threejs.org/examples/js/loaders/STLLoader.js 
+  // Source: http://threejs.org/examples/js/loaders/STLLoader.js 
   // In case DataView is not supported from the browser, create it.
   // if (typeof DataView === 'undefined') {
   //   var newScript = document.createElement('script');
@@ -130,8 +130,8 @@
 
     // Constants for default setting
     var OBJECT_MATERIAL   = "skin"; 
-    var OBJECT_STATUS     = true;
-    var OBJECT_COLOR      = 0x009999; 
+    var OBJECT_STATUS     = false;
+    var OBJECT_COLOR      = [255, 255, 255]; 
     var OBJECT_PLANE      = false;
     var OBJECT_PLANEWIRE  = false;
 
@@ -139,14 +139,14 @@
     var CAMERA_NEARFIELD = 1;
     var CAMERA_FARFIELD  = 100000;
 
-    var VIEWER_THEME  = "madeleine";
-    var VIEWER_PREFIX = "madeleine_";
+    var VIEWER_THEME  = "lime";
+    var VIEWER_PREFIX = "mad-";
     var VIEWER_CREATE = true;
     var VIEWER_HEIGHT = 400;
     var VIEWER_WIDTH  = 640;
 
     var USER_ROTATE_SENSITIVITY = 0.009;
-    var USER_ZOOM_SENSITIVITY   = 10;
+    var USER_ZOOM_SENSITIVITY   = 100;
 
 
     // Necessary option check 
@@ -170,6 +170,7 @@
 
       // About 3d model
       this.__data = null;
+      this.__info = null;
       this.__stats = null;
       this.__object = null;
 
@@ -193,12 +194,9 @@
       this.__sizeRatio = 1;
 
       // About user interaction
-      this.__zoomOutLimit = 180;
-      this.__zoomInLimit  = 0
-      this.__zoomable     = true;
-
-      this.__rotatable  = true;
-      this.__rotating   = false;
+      this.__zoomable  = true;
+      this.__rotatable = true;
+      this.__rotating  = false;
 
       // Crucial properties to render 3d model
       this.data = options.data;
@@ -279,9 +277,10 @@
     // Adjust zoom sensitivity to fit into proper range 
     Madeleine.prototype.adjustZoomSensitivity = function() {
       var intensity = this.options.zoomSensitivity;
+      var visibleField = this.options.camera.far - this.options.camera.near;
 
-      if (intensity && typeof intensity === "number" && 0 < intensity && intensity <= 20) return;
-      else this.options.zoomSensitivity = USER_ZOOM_SENSITIVITY;
+      if (intensity && typeof intensity === "number" && 0 < intensity && intensity <= visibleField/1000) return;
+      else this.options.zoomSensitivity = visibleField/1000;
     };
 
     // Adjust rotate sensitivity to fit into proper range 
@@ -317,8 +316,30 @@
       Lily.log(FLUSH_QUEUE);
     };
 
+    Madeleine.prototype.numberFormat = function(num) {
+      var parts = num.toString().split(".");
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return parts.join(".");
+    };
+
     // Initialize viewer
     Madeleine.prototype.init = function() {
+
+      // Initialize data info object.
+      this.__info = {
+        type: null,
+        load: this.type,
+        vertices: 0,
+        facets: 0,
+        faces: 0
+      };
+      if (typeof this.data == "string") {
+        this.__info["name"] = this.data.split("/").slice(-1)[0];
+        this.__info["size"] = null;
+      } else {
+        this.__info["name"] = this.data.name;
+        this.__info["size"] = this.numberFormat(this.data.size);
+      }
 
       // If create new viewer, set canvas size to the viewer.
       if (this.options.viewer.create) {
@@ -401,6 +422,7 @@
           scope.renderObject();
           Lily.log(ALL_FINISHED);
 
+          // Compute time consumed in parsing and rendering.
           scope.__timer.end = (new Date()).getTime();
           if (scope.options.showStatus) {
             var consumed = (scope.__timer.end - scope.__timer.start) / 1000;
@@ -478,7 +500,7 @@
     // check if stl file is binary or ASCII
     Madeleine.prototype.checkSTLType = function(reader) {
 
-      var dataSize;
+      var realSize, dataSize, isBinary;
 
       // NOTE:
       //    Because STL files don't provide any information whether they are ASCII or binary,
@@ -501,9 +523,12 @@
       reader.skip(80);
       // reader.readUInt32() == number of facets
       dataSize = 80 + 4 + 50 * reader.readUInt32();
+      realSize = reader.getLength();
       Lily.log(DONE_TYPE_CHECK);
-      // true: binary | false: ASCII
-      return dataSize == reader.getLength();
+      isBinary = dataSize == realSize;
+      this.__info["type"] = isBinary ? "binary" : "ascii";
+      if (isBinary) this.__info["size"] = this.numberFormat(realSize);
+      return isBinary;
     };
 
     // Parse binary stl file
@@ -618,14 +643,14 @@
       var material = null;
       if (this.options.material == "skin") {
         material = new THREE.MeshLambertMaterial({
-          color: this.options.objectColor,
+          color: this.getHexColor(this.options.objectColor),
           shading: THREE.FlatShading,
           doubleSided: true,
           overdraw: true
         });
       } else {
         material = new THREE.MeshBasicMaterial({
-          color: this.options.objectColor,
+          color: this.getHexColor(this.options.objectColor),
           wireframe: true
         });
       }
@@ -640,13 +665,13 @@
       var centerY = parseFloat(0.6 * ( this.__geometry.boundingBox.max.y - this.__geometry.boundingBox.min.y ));
       var centerZ = parseFloat(0.6 * ( this.__geometry.boundingBox.max.z - this.__geometry.boundingBox.min.z ));
       var zoomFactor = 1.37 * (125 / this.__geometry.boundingSphere.radius);
+
       this.__object.scale.set(zoomFactor, zoomFactor, zoomFactor);
       this.__object.position.setY(-centerY);
       this.__object.position.setZ(-centerZ);
+
       this.__camera.position.z = 500;
       this.__camera.updateProjectionMatrix();
-      // this.__camera.position.y = distance/4;
-
 
       // Parsing finished
       this.__scene.add(this.__object);
@@ -662,6 +687,7 @@
           alpha: true
         }) : new THREE.CanvasRenderer(); 
         this.__renderer.setSize(this.__width, this.__height);
+        this.__renderer.setClearColor(0x000000, 0);
         Lily.log(RENDER_CREAT);
         this.createViewer();
       } else {
@@ -671,18 +697,201 @@
 
     // Generate Madeleine Viewer
     Madeleine.prototype.createViewer = function() {
-      if (this.__viewer) {
-        Lily.log(VIEWER_EXISTS);
-      } else if (!this.__renderer) {
-        Lily.log(VIEWER_ERROR);
-      } else {
+      if (this.__viewer) Lily.log(VIEWER_EXISTS);
+      else if (!this.__renderer) Lily.log(VIEWER_ERROR);
+      else {
+        // Create viewer element
         this.__viewer = document.createElement("div");
         this.__viewer.id = this.options.viewer.prefix + this.__id;
-        this.__viewer.className = this.options.viewer.theme;
+
+        // Set default style
+        this.__viewer.style.background = "transparent"; 
+        this.__viewer.style.position = "relative"; 
+        this.__viewer.style.height = 400; 
+        this.__viewer.style.width = 640; 
+
+        var header = document.createElement("div");
+        header.style["background"] = "rgba(0,0,0,0.7)"; 
+        header.style["position"] = "absolute";
+        header.style["height"] = "45px";
+        header.style["width"] = this.options.viewer.width+"px";
+        header.style["top"] = 0;
+
+        header.style["-webkit-box-sizing"] = "border-box";
+        header.style["-moz-box-sizing"] = "border-box";
+        header.style["box-sizing"] = "border-box";
+
+        header.style["padding-left"] = "10px";
+        header.style["line-height"] = "45px";
+        header.style["font-size"] = "18px";
+        header.style["color"] = "#FFFFFF";
+        header.innerHTML = "Rendered Model: " + this.__info.name + " (type: " + this.__info.type + ") - " + this.__info.size + " bytes";
+
+        // Append to container
         this.container.appendChild(this.__viewer);
         this.__viewer.appendChild(this.__renderer.domElement);
+        this.__viewer.appendChild(header);
+        this.adaptViewerTheme();
         Lily.log(VIEWER_CREAT);
       }
+    };
+
+    // Set viewer theme
+    Madeleine.prototype.adaptViewerTheme = function() {
+      var canvas, theme;
+
+      canvas = this.__viewer.children[0];
+      theme = arguments.length == 0 ? this.options.viewer.theme : arguments[0];
+
+      // Adapt theme
+      switch (theme) {
+        case "soft":
+          canvas.style.cssText = this.generateGradation({dark: "2D2D2D"});
+          this.options.objectColor = OBJECT_COLOR;
+          break;
+        case "dark":
+          canvas.style["background"] = "#000000"; 
+          this.options.objectColor = OBJECT_COLOR;
+          break;
+        case "lime":
+          canvas.style.cssText = this.generateGradation({dark: "2B2B2B"});
+          this.options.objectColor = "D4FF00"; // [212, 255, 0];
+          break;
+        case "rose":
+          canvas.style.cssText = this.generateGradation({bright: "369075"});
+          this.options.objectColor = "C94C66"; // [201, 76, 102];
+          break;
+        case "lego":
+          canvas.style.cssText = this.generateGradation({bright: "FFA400"});
+          this.options.objectColor = "00A08C"; // [0, 160, 140];
+          break;
+        case "toxic":
+          canvas.style.cssText = this.generateGradation({bright: "FFEE4D"});
+          this.options.objectColor = "5254CB"; // [82, 84, 203];
+          break;
+        case "cobalt":
+          canvas.style.cssText = this.generateGradation({bright: "FFC200"});
+          this.options.objectColor = "0C6BC0"; // [12, 107, 192];
+          break;
+        default:  // default is light
+          canvas.style.cssText = this.generateGradation({bright: "FFFFFF"});
+          this.options.objectColor = OBJECT_COLOR;
+          break;
+      }
+
+      // If object exists, paint color on it.
+      this.__object && this.setObjectColor();
+    };
+
+    // Set canvas background color
+    Madeleine.prototype.setBackgroundColor = function(code) {
+      var canvas, color, code;
+
+      code = arguments.length == 3 ? [arguments[0], arguments[1], arguments[2]] : code;
+      canvas = this.__viewer.children[0];
+      color = this.getHexString(code);
+
+      canvas.style["background"] = this.makeHexString(color);
+    };
+
+    // Set object surface color
+    Madeleine.prototype.setObjectColor = function() {
+      var color = arguments.length != 0 ? arguments : this.options.objectColor;
+      this.__object.material.color.setHex(this.getHexColor(color));
+    };
+
+    // Generate gradation css
+    Madeleine.prototype.generateGradation = function(colors) {
+      var darker, brighter, cssText;
+
+      cssText = "background: BRIGHT;" +
+                "background: -moz-radial-gradient(center, ellipse cover, BRIGHT 27%, DARK 100%);" +
+                "background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(27%,BRIGHT), color-stop(100%,DARK))" +
+                "background: -webkit-radial-gradient(center, ellipse cover, BRIGHT 27%,DARK 100%);" +
+                "background: -o-radial-gradient(center, ellipse cover, BRIGHT 27%, DARK 100%);" +
+                "background: -ms-radial-gradient(center, ellipse cover, BRIGHT 27%, DARK 100%);" +
+                "background: radial-gradient(ellipse at center, BRIGHT 27%, DARK 100%);" +
+                "filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='BRIGHT', endColorstr='DARK',GradientType=1 )"; 
+
+      if (colors.dark) {
+        darker = this.getHexString(colors.dark);
+        brighter = this.getHexString(colors.bright ? colors.bright : this.adjustBrightness(darker));
+      } else {
+        brighter = this.getHexString(colors.bright);
+        darker = this.getHexString(this.adjustBrightness(brighter));
+      }
+
+      return cssText.replace(/BRIGHT/g, brighter).replace(/DARK/g, darker);
+    };
+
+    // Get Hex color (0xXXXXXX format)
+    Madeleine.prototype.getHexColor = function() {
+      var code = arguments.length == 3 ? [arguments[0], arguments[1], arguments[2]] : arguments[0];
+      var color = this.getHexString(code);
+      return parseInt(color.replace(/\#/g, ''), 16); 
+    };
+
+    // Get Hex-style string (#XXXXXX format)
+    Madeleine.prototype.getHexString = function(code) {
+      if (typeof code == "string") return this.makeHexString(code);
+      else if (typeof code == "object") return this.rgbToHex(code);
+    };
+
+    // Strip # from Hex-style string
+    Madeleine.prototype.cutHexString = function(code) {
+      return code.charAt(0) == "#" ? code.substring(1) : code;
+    };
+
+    // Prepend # to hex string
+    Madeleine.prototype.makeHexString = function(code) {
+      var color = code.length == 3 ? code.replace(/(.)/g, '$1$1') : code;
+      return color.charAt(0) != "#" ? "#" + color : color;
+    };
+
+    // Convert RGB to Hex
+    Madeleine.prototype.rgbToHex = function(code) {
+      var i, color, hex = "#";
+      for (i = 0; i < code.length; i++) {
+        color = code[i].toString(16);
+        hex += (color.length == 1 ? "0" + color : color);
+      }
+      return hex;
+    };
+
+    // Convert Hex to RGB
+    Madeleine.prototype.hexToRgb = function(code) {
+      var dec = this.cutHexString(code).toString(16);
+      return [parseInt(dec.substring(0, 2), 16),
+              parseInt(dec.substring(2, 4), 16),
+              parseInt(dec.substring(4, 6), 16)];
+    };
+
+    // Get brighter or darker color from input color
+    // Brightness is automatically set according to its intensity.
+    Madeleine.prototype.adjustBrightness = function(code) {
+      var adjustedR, adjustedG, adjustedB;
+      var intensity, color, rgb, r, g, b;
+      var darkFactor = 25, brightFactor = 20;
+
+      // Get color and RGB
+      color = this.cutHexString(code);
+      rgb = this.hexToRgb(color);
+
+      r = rgb[0];
+      g = rgb[1];
+      b = rgb[2];
+
+      // Get grayscale intensity
+      intensity = Math.sqrt(r*r + g*g + b*b) / 255 * 100;
+
+      // New color
+      adjustedR = intensity > 40 ? (0|(1<<8) + r * (1 - darkFactor / 100)) : (0|(1<<8) + r + (256 - r) * brightFactor / 100);
+      adjustedG = intensity > 40 ? (0|(1<<8) + g * (1 - darkFactor / 100)) : (0|(1<<8) + g + (256 - g) * brightFactor / 100);
+      adjustedB = intensity > 40 ? (0|(1<<8) + b * (1 - darkFactor / 100)) : (0|(1<<8) + b + (256 - b) * brightFactor / 100);
+
+      return (adjustedR.toString(16)).substr(1) +
+             (adjustedG.toString(16)).substr(1) +
+             (adjustedB.toString(16)).substr(1);
     };
 
     // If not rotating, set rotate flag to true and start animation
@@ -762,18 +971,14 @@
 
     // Manually zoom out object
     Madeleine.prototype.manualZoomOut = function() {
-      if (this.__camera.fov + this.options.zoomSensitivity < this.__zoomOutLimit) {
-        this.__camera.fov += this.options.zoomSensitivity;
-        this.__camera.updateProjectionMatrix();
-      }
+      this.__camera.position.z += this.options.zoomSensitivity;
+      this.__camera.updateProjectionMatrix();
     };
 
     // Manually zoom in object
     Madeleine.prototype.manualZoomIn = function() {
-      if (this.__camera.fov - this.options.zoomSensitivity > this.__zoomInLimit) {
-        this.__camera.fov -= this.options.zoomSensitivity;
-        this.__camera.updateProjectionMatrix();
-      }
+      this.__camera.position.z -= this.options.zoomSensitivity;
+      this.__camera.updateProjectionMatrix();
     };
 
     // Show animation status
@@ -793,11 +998,6 @@
       Lily.log(LOG_DISABLED);
     };
 
-    // Set object color
-    Madeleine.prototype.setObjectColor = function(code) {
-      this.options.objectColor = parseInt(color.replace(/\#/g, ''), 16);
-    };
-
     return new Madeleine(options);
 
   };
@@ -808,7 +1008,7 @@
     // Initialize
     var Lily = function() {
       if (!Detector.webgl) Detector.addGetWebGLMessage();
-      this.verbose = 2;
+      this.verbose = 0;
       this.sisters = [];
     };
 
