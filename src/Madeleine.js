@@ -663,15 +663,22 @@
       this.__geometry.computeVertexNormals();
 
       // Adjust camera and object to make object fit into screen properly
-      var centerY = parseFloat(0.6 * ( this.__geometry.boundingBox.max.y - this.__geometry.boundingBox.min.y ));
-      var centerZ = parseFloat(0.6 * ( this.__geometry.boundingBox.max.z - this.__geometry.boundingBox.min.z ));
-      var zoomFactor = 1.37 * (125 / this.__geometry.boundingSphere.radius);
+      var radius = this.__geometry.boundingSphere.radius;
+      var size = this.__geometry.boundingBox.max.y - this.__geometry.boundingBox.min.y;
+      var centerY = parseFloat(0.6 * size);
+      var centerZ = parseFloat(0.6 * size);
+      var zoomFactor = 1.37 * (125 / radius);
 
       this.__object.scale.set(zoomFactor, zoomFactor, zoomFactor);
       this.__object.position.setY(-centerY);
       this.__object.position.setZ(-centerZ);
 
-      this.__camera.position.z = 500;
+      // If object is too large to fit in, make camera look further
+      // 500 (default camera distance) : 466 (view height)
+      // new distance (x) : boundingSphere radius (r) * 2
+      // x = (2 * r * 500) / 466 ~= 2.146 * r
+      if (radius < 233) this.__camera.position.z = 500;
+      else this.__camera.position.z = radius * 2.146;
       this.__camera.updateProjectionMatrix();
 
       // Parsing finished
