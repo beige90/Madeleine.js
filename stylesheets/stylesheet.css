@@ -421,3 +421,54 @@ Small Device Styles
   }
 
 }
+
+.theme {
+  text-align: center;
+}
+
+.themeButton {
+  padding: 0;
+  margin: 1px;
+  width: 150px;
+  height: 40px;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 40px;
+  text-align: center;
+  background: #FFFFFF;
+  display: inline-block;
+  border: 1px solid #EFEFEF;
+}
+
+.light {
+  color: #DFDFDF;
+}
+
+.dark {
+  color: #000000;
+}
+
+.soft {
+  color: #FF9900;
+}
+
+.lime {
+  color: #D4FF00;
+}
+
+.rose {
+  color: #C94C66;
+}
+
+.lego {
+  color: #00A08C;
+}
+
+.toxic {
+  color: #5254CB;
+}
+
+.cobalt {
+  color: #0C6BC0;
+}
