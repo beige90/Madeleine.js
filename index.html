@@ -62,7 +62,11 @@
 
         <h2><a name="demo" class="anchor" href="#demo"><span class="octicon octicon-link"></span></a>DEMO</h2>
 
-        <div id="target"></div>
+        <h3>Ajax loading</h3>
+        <div id="ajax-target"></div>
+        <h3>File upload</h3>
+        <form><input type="file" id="files" name="files" multiple></form>
+        <div id="upload-target"></div>
 
         <p><a href="https://github.com/JinJunho/Madeleine.js/archive/master.zip">Download source</a> or <a href="github-mac://openRepo/https://github.com/JinJunho/Madeleine.js">clone the repository</a> and locate it on your web server root. You can check working demo by visiting <strong>repo/examples/index.html</strong> from your browser. Download any stl file and see how well it works!</p>
 
@@ -148,9 +152,15 @@
 
     <script>
       window.onload = function(){
+        // Load model via ajax
         madeleine = new Madeleine({
-          target: 'target',
+          target: 'ajax-target',
           data: 'models/skull.stl'
+        });
+        // Get ready to accept file upload
+        Lily.ready({
+          target: 'upload-target',
+          file: 'files'
         });
       }; 
     </script>
