@@ -131,7 +131,7 @@
     // Constants for default setting
     var OBJECT_MATERIAL   = "skin"; 
     var OBJECT_STATUS     = false;
-    var OBJECT_COLOR      = [255, 255, 255]; 
+    var OBJECT_COLOR      = "FF9900";
     var OBJECT_PLANE      = false;
     var OBJECT_PLANEWIRE  = false;
 
@@ -139,7 +139,7 @@
     var CAMERA_NEARFIELD = 1;
     var CAMERA_FARFIELD  = 100000;
 
-    var VIEWER_THEME  = "lime";
+    var VIEWER_THEME  = "default";
     var VIEWER_PREFIX = "mad-";
     var VIEWER_CREATE = true;
     var VIEWER_HEIGHT = 400;
@@ -316,10 +316,11 @@
       Lily.log(FLUSH_QUEUE);
     };
 
-    Madeleine.prototype.numberFormat = function(num) {
-      var parts = num.toString().split(".");
-      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-      return parts.join(".");
+    Madeleine.prototype.numberFormat = function(bytes) {
+      var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      if (bytes == 0) return '0 Byte';
+      var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
     };
 
     // Initialize viewer
@@ -645,7 +646,7 @@
         material = new THREE.MeshLambertMaterial({
           color: this.getHexColor(this.options.objectColor),
           shading: THREE.FlatShading,
-          doubleSided: true,
+          side: THREE.DoubleSide,
           overdraw: true
         });
       } else {
@@ -697,8 +698,9 @@
 
     // Generate Madeleine Viewer
     Madeleine.prototype.createViewer = function() {
-      if (this.__viewer) Lily.log(VIEWER_EXISTS);
+      if (!this.options.viewer.create) this.container.appendChild(this.__renderer.domElement);
       else if (!this.__renderer) Lily.log(VIEWER_ERROR);
+      else if (this.__viewer) Lily.log(VIEWER_EXISTS);
       else {
         // Create viewer element
         this.__viewer = document.createElement("div");
@@ -707,30 +709,67 @@
         // Set default style
         this.__viewer.style.background = "transparent"; 
         this.__viewer.style.position = "relative"; 
-        this.__viewer.style.height = 400; 
-        this.__viewer.style.width = 640; 
+        this.__viewer.style.height = this.__height; 
+        this.__viewer.style.width = this.__width; 
 
-        var header = document.createElement("div");
-        header.style["background"] = "rgba(0,0,0,0.7)"; 
-        header.style["position"] = "absolute";
-        header.style["height"] = "45px";
-        header.style["width"] = this.options.viewer.width+"px";
-        header.style["top"] = 0;
+        // Viewer iconGrid
+        var iconGrid = document.createElement("div");
+        iconGrid.style.cssText += "background:transparent;position:absolute;padding:15px 10px;";
+        iconGrid.style.cssText += "height:50px;width:"+this.__width+"px;top:0;overflow:auto;";
+        iconGrid.className += "box";
 
-        header.style["-webkit-box-sizing"] = "border-box";
-        header.style["-moz-box-sizing"] = "border-box";
-        header.style["box-sizing"] = "border-box";
+        var logo = document.createElement("div");
+        var info = document.createElement("div");
+        var view = document.createElement("div");
+        var capture = document.createElement("div");
+        var download = document.createElement("div");
+        var fullscreen = document.createElement("div");
 
-        header.style["padding-left"] = "10px";
-        header.style["line-height"] = "45px";
-        header.style["font-size"] = "18px";
-        header.style["color"] = "#FFFFFF";
-        header.innerHTML = "Rendered Model: " + this.__info.name + " (type: " + this.__info.type + ") - " + this.__info.size + " bytes";
+        info.className += "model-info noselect";
+        info.innerHTML = this.__info.name+" ("+this.__info.size+")";
+
+        logo.className += "clickable pull-left madeleine-logo";
+        view.className += "clickable pull-right icon-mad-view";
+        capture.className += "clickable pull-right icon-mad-capture";
+        download.className += "clickable pull-right icon-mad-download";
+        fullscreen.className += "clickable pull-right icon-mad-screen-full";
+
+        var rotator = document.createElement("div");
+        var faster = document.createElement("div");
+        var slower = document.createElement("div");
+        var player = document.createElement("div");
+
+        rotator.style.cssText += "background:transparent;position:absolute;padding:15px 10px;right:0;";
+        rotator.style.cssText += "height:50px;width:"+this.__width+"px;top:0;overflow:auto;";
+        rotator.style.cssText += "margin-top:"+(this.__height-30)+"px;";
+
+        player.className += "icon-clickable pull-right icon-mad-stop";
+        slower.className += "icon-clickable pull-right icon-mad-slower";
+        faster.className += "icon-clickable pull-right icon-mad-faster";
+
+        rotator.appendChild(faster);
+        rotator.appendChild(player);
+        rotator.appendChild(slower);
+
+        var controller = document.createElement("div");
+        var trackball = document.createElement("div");
+        var right = document.createElement("div");
+        var left = document.createElement("div");
+        var down = document.createElement("div");
+        var up = document.createElement("div");
+        
+        iconGrid.appendChild(fullscreen);
+        iconGrid.appendChild(download);
+        iconGrid.appendChild(capture);
+        iconGrid.appendChild(view);
+        iconGrid.appendChild(logo);
+        iconGrid.appendChild(info);
+        iconGrid.appendChild(rotator);
 
         // Append to container
         this.container.appendChild(this.__viewer);
         this.__viewer.appendChild(this.__renderer.domElement);
-        this.__viewer.appendChild(header);
+        this.__viewer.appendChild(iconGrid);
         this.adaptViewerTheme();
         Lily.log(VIEWER_CREAT);
       }
@@ -745,36 +784,36 @@
 
       // Adapt theme
       switch (theme) {
-        case "soft":
-          canvas.style.cssText = this.generateGradation({dark: "2D2D2D"});
-          this.options.objectColor = OBJECT_COLOR;
-          break;
         case "dark":
           canvas.style["background"] = "#000000"; 
-          this.options.objectColor = OBJECT_COLOR;
+          this.options.objectColor = "FFD300";
           break;
         case "lime":
-          canvas.style.cssText = this.generateGradation({dark: "2B2B2B"});
+          canvas.style.cssText += this.generateGradation({dark: "2B2B2B"});
           this.options.objectColor = "D4FF00"; // [212, 255, 0];
           break;
         case "rose":
-          canvas.style.cssText = this.generateGradation({bright: "369075"});
+          canvas.style.cssText += this.generateGradation({bright: "369075"});
           this.options.objectColor = "C94C66"; // [201, 76, 102];
           break;
         case "lego":
-          canvas.style.cssText = this.generateGradation({bright: "FFA400"});
+          canvas.style.cssText += this.generateGradation({bright: "FFA400"});
           this.options.objectColor = "00A08C"; // [0, 160, 140];
           break;
         case "toxic":
-          canvas.style.cssText = this.generateGradation({bright: "FFEE4D"});
+          canvas.style.cssText += this.generateGradation({bright: "FFEE4D"});
           this.options.objectColor = "5254CB"; // [82, 84, 203];
           break;
         case "cobalt":
-          canvas.style.cssText = this.generateGradation({bright: "FFC200"});
+          canvas.style.cssText += this.generateGradation({bright: "FFC200"});
           this.options.objectColor = "0C6BC0"; // [12, 107, 192];
           break;
-        default:  // default is light
-          canvas.style.cssText = this.generateGradation({bright: "FFFFFF"});
+        case "light":
+          canvas.style.cssText += this.generateGradation({bright: "FFFFFF"});
+          this.options.objectColor = "F00842";
+          break;
+        default:
+          canvas.style.cssText += this.generateGradation({dark: "0F0F0F", bright: "4D4D4D", pos1: "0", pos2: "60"});
           this.options.objectColor = OBJECT_COLOR;
           break;
       }
@@ -802,15 +841,15 @@
 
     // Generate gradation css
     Madeleine.prototype.generateGradation = function(colors) {
-      var darker, brighter, cssText;
+      var pos1, pos2, darker, brighter, cssText;
 
       cssText = "background: BRIGHT;" +
-                "background: -moz-radial-gradient(center, ellipse cover, BRIGHT 27%, DARK 100%);" +
-                "background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(27%,BRIGHT), color-stop(100%,DARK))" +
-                "background: -webkit-radial-gradient(center, ellipse cover, BRIGHT 27%,DARK 100%);" +
-                "background: -o-radial-gradient(center, ellipse cover, BRIGHT 27%, DARK 100%);" +
-                "background: -ms-radial-gradient(center, ellipse cover, BRIGHT 27%, DARK 100%);" +
-                "background: radial-gradient(ellipse at center, BRIGHT 27%, DARK 100%);" +
+                "background: -moz-radial-gradient(center, ellipse cover, BRIGHT POS1%, DARK POS2%);" +
+                "background: -webkit-gradient(radial, center center, 0px, center center, POS2%, color-stop(POS1%,BRIGHT), color-stop(POS2%,DARK))" +
+                "background: -webkit-radial-gradient(center, ellipse cover, BRIGHT POS1%,DARK POS2%);" +
+                "background: -o-radial-gradient(center, ellipse cover, BRIGHT POS1%, DARK POS2%);" +
+                "background: -ms-radial-gradient(center, ellipse cover, BRIGHT POS1%, DARK POS2%);" +
+                "background: radial-gradient(ellipse at center, BRIGHT POS1%, DARK POS2%);" +
                 "filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='BRIGHT', endColorstr='DARK',GradientType=1 )"; 
 
       if (colors.dark) {
@@ -821,7 +860,10 @@
         darker = this.getHexString(this.adjustBrightness(brighter));
       }
 
-      return cssText.replace(/BRIGHT/g, brighter).replace(/DARK/g, darker);
+      pos1 = colors.pos1 ? colors.pos1 : 27;
+      pos2 = colors.pos2 ? colors.pos2 : 100;
+
+      return cssText.replace(/BRIGHT/g, brighter).replace(/DARK/g, darker).replace(/POS1/g, pos1).replace(/POS2/g, pos2);
     };
 
     // Get Hex color (0xXXXXXX format)
@@ -871,7 +913,7 @@
     Madeleine.prototype.adjustBrightness = function(code) {
       var adjustedR, adjustedG, adjustedB;
       var intensity, color, rgb, r, g, b;
-      var darkFactor = 25, brightFactor = 20;
+      var darkFactor = 30, brightFactor = 20;
 
       // Get color and RGB
       color = this.cutHexString(code);
