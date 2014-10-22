@@ -13,6 +13,11 @@ Madeleine.js is smart enough to distinguish whether stl files are ASCII or binar
 - Accept STL file from external url or user file upload.
 - Support rendering multiple models (also multi upload).
 - Provide various themes for model viewer.
+- Allow user to interact with the model via mouse actions.
+- Support capturing the rendered 3D model (Implementing)
+- Support downloading the original stl file (Implementing)
+- Support different viewpoint (Implementing)
+- Support fullscreen mode (Implementing)
 - And more features will be added later!
 
 
@@ -24,13 +29,14 @@ For developers, [download](https://github.com/JinJunho/Madeleine.js/archive/mast
 
 ## Getting Started 
 
-First, include libraries and Madeleine.js into your code.
+First, include resources into <head> element of your code.
 
 ```html
-<script src="js/libraries/stats.js"></script>
-<script src="js/libraries/detector.js"></script>
-<script src="js/libraries/three.min.js"></script>
-<script src="js/Madeleine.js"></script>
+<link href="src/css/Madeleine.css" rel="stylesheet">
+<script src="src/lib/stats.js"></script>
+<script src="src/lib/detector.js"></script>
+<script src="src/lib/three.min.js"></script>
+<script src="src/Madeleine.js"></script>
 ```
 
 ### 1. Immediate File Upload
@@ -41,7 +47,7 @@ All you need to do is simply asking Lily (is Madeleine's sister) to get ready fo
 <form id="myForm" name="myForm">
     <input type="file" id="myForm" name="myForm" multiple>
 </form>
-<div id="target" class="madeleine"></div>
+<div id="target"></div>
 
 <script>
 window.onload = function(){
@@ -62,11 +68,10 @@ If you know the url or path to the stl file, call Madeleine directly with target
 
 <script>
 window.onload = function(){
-    var madeleine = new Madeleine('target'); // id of target div
-    madeleine.draw(
-        target: 'target', // target div id
-        data: 'path/to/file.stl' // data path
-    ); 
+    var madeleine = new Madeleine({
+      target: 'target', // target div id
+      data: 'path/to/file.stl' // data path
+    });
 }; 
 </script>
 ```
