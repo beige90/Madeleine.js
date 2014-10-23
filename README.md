@@ -82,12 +82,4 @@ This code is under [MIT License](http://choosealicense.com/licenses/mit/). You c
 
 ## Who am I?
 
-My name is [Junho Jin](http://plrg.kaist.ac.kr/jjh) and I'm a newbie programmer :)
-
-## Who are Madeleine and Lily?
-
-[Lily and Madeleine](http://lilandmad.com) are one of my favourite singers. As a fan, I named this project after their names (hope they know it!).
-
-This is my fuel for developing this project :)
-
-[![Lily and Madeleine - Fumes](http://img.youtube.com/vi/hZIci_KmtbY/0.jpg)](http://youtu.be/hZIci_KmtbY)
+[Junho Jin](http://plrg.kaist.ac.kr/jjh)
