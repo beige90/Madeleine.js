@@ -2,7 +2,7 @@
 
 Madeleine.js is a 3D Model parser & renderer for STL files (ASCII and binary both). 
 
-Madeleine.js uses [Three.js](http://github.com/mrdoob/three.js) as its 3D Engine, and was inspired by the demo code of [tonylukasavage](https://github.com/tonylukasavage/jsstl).
+Madeleine.js uses [Three.js (r68)](http://github.com/mrdoob/three.js) as its 3D Engine, and was inspired by the demo code of [tonylukasavage](https://github.com/tonylukasavage/jsstl).
 
 Madeleine.js is smart enough to distinguish whether stl files are ASCII or binary, and is able to create and handle multiple 3D model viewers (WARNING: Multiple rendering may slow down the speed). Also, Madeleine.js helps you to immediately render any stl file as you upload!
 
@@ -82,4 +82,4 @@ This code is under [MIT License](http://choosealicense.com/licenses/mit/). You c
 
 ## Who am I?
 
-[Junho Jin](http://plrg.kaist.ac.kr/jjh)
+I'm [Junho Jin](http://plrg.kaist.ac.kr/jjh) :)
