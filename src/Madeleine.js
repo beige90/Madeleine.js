@@ -1,6 +1,6 @@
 /**
  * @author    Junho Jin[junho.jin@kaist.ac.kr] | https://github.com/JinJunho
- * @version   0.9.5
+ * @version   1.0.0
  *
  * [Project] Madeleine.js, Pure JavaScript STL Parser & Renderer. 
  *
@@ -60,12 +60,12 @@
   var FILEAPI_NOT_SUPPORTED = "NoFileAPI";
 
   // Custom Data Reader.
-  // Caution: May exceeds the size limit.
+  // Caution: No protection of accessing index over its size limit.
   var DataReader = function(binary) {
     this.idx = 0; // in bytes
     this.data = binary;
     this.buffer = null;
-    this.reader = new DataView(binary); 
+    this.reader = new DataView(binary); // binary = arrayBuffer
     this.littleEndian = true;
 
     // Helper functions
@@ -129,6 +129,8 @@
 
 
     // Constants for default setting
+    var CONVERT_TO_BINARY = true;
+
     var OBJECT_MATERIAL   = "skin"; 
     var OBJECT_STATUS     = false;
     var OBJECT_COLOR      = "FF9900";
@@ -173,6 +175,7 @@
       this.__info = null;
       this.__stats = null;
       this.__object = null;
+      this.__converted = null;
 
       // About visualization
       this.__pov    = null;
@@ -404,16 +407,6 @@
     Madeleine.prototype.draw = function() {
       // Log start
       Lily.log(DRAW_START);
-
-      // Check input type and get STL Binary data 
-      switch (this.type) {
-        case "upload":
-          this.getBinaryFromBlob(this.data);break;
-        case "file":
-          this.getBinaryFromUrl(this.data);break;
-        default:
-          Lily.log(INVALID_DRAW_TYPE, this.type);break;
-      }
       
       // Wait until data is fully loaded
       this.enqueue((function(scope) {
@@ -439,10 +432,20 @@
           Lily.log(DONE_DRAW);
         };
       })(this));
+
+      // Check input type and get STL Binary data 
+      switch (this.type) {
+        case "upload":
+          this.getDataFromBlob(this.data);break;
+        case "file":
+          this.getDataFromUrl(this.data);break;
+        default:
+          Lily.log(INVALID_DRAW_TYPE, this.type);break;
+      }
     };
 
     // Get arrayBuffer from Blob
-    Madeleine.prototype.getBinaryFromBlob = function(file) {
+    Madeleine.prototype.getDataFromBlob = function(file) {
       if (Detector.fileapi) {
         var reader = new FileReader();
 
@@ -463,7 +466,7 @@
     };
 
     // Get arrayBuffer from external file 
-    Madeleine.prototype.getBinaryFromUrl = function(url) {
+    Madeleine.prototype.getDataFromUrl = function(url) {
       var xhr = new XMLHttpRequest();
 
       // Callback function
@@ -522,12 +525,15 @@
 
       Lily.log(TYPE_CHECK);
       reader.skip(80);
+
       // reader.readUInt32() == number of facets
       dataSize = 80 + 4 + 50 * reader.readUInt32();
       realSize = reader.getLength();
-      Lily.log(DONE_TYPE_CHECK);
+
       isBinary = dataSize == realSize;
       this.__info["type"] = isBinary ? "binary" : "ascii";
+      Lily.log(DONE_TYPE_CHECK, this.__info.type);
+
       if (isBinary) this.__info["size"] = this.numberFormat(realSize);
       return isBinary;
     };
@@ -582,6 +588,7 @@
     Madeleine.prototype.parseASCIISTL = function() {
       var vertexRegExp, normalRegExp, facetRegExp;
       var normal, face, buff, data = "";
+      var normals, vertices;
       var match, rest;
 
       buff = new Uint8Array(this.__data);
@@ -608,12 +615,15 @@
       //      endsolid name
 
       idx = 0;
+      normals = new Array();
+      vertices = new Array();
       this.__geometry = new THREE.Geometry();
       while ((match = facetRegExp.exec(data)) !== null) {
         // Information about a triangular facet
         rest = match[0];
         // Get normal vector
         while ((match = normalRegExp.exec(rest)) !== null) {
+          normals.push([parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])]);
           normal = new THREE.Vector3(
             parseFloat(match[1]),
             parseFloat(match[2]),
@@ -622,6 +632,7 @@
         }
         // Get vectors for each vertex
         while ((match = vertexRegExp.exec(rest)) !== null) {
+          vertices.push([parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])]);
           this.__geometry.vertices.push(new THREE.Vector3(
             parseFloat(match[1]),
             parseFloat(match[2]),
@@ -633,6 +644,56 @@
       }
 
       Lily.log(PARSE_SUCCESS);
+
+      if (CONVERT_TO_BINARY) {
+        var reader = new FileReader();
+        var convertedBlob = this.convertToBinary(idx/3, normals, vertices);
+        // onload function
+        reader.onload = (function(scope) {
+          return function() {
+            // save converted binary data
+            scope.__converted = reader.result;
+          };
+        })(this);
+        // read arrayBuffer from Blob
+        reader.readAsArrayBuffer(convertedBlob);
+      }
+    };
+
+    // Convert ASCII file to Binary file 
+    Madeleine.prototype.convertToBinary = function(faces, normals, vertices) {
+      var blobArray, header, facets, verts, tail;
+      var prefix, i, j;
+
+      // Binary header
+      prefix = "3CREATORS-CONVERTED-STL-BINARY-FORMAT-------------------------------------------";
+      blobArray = new Array();
+      header = new Uint8Array(80);
+      facets = new Uint32Array([faces]);
+
+      // Attach header array
+      for (i = 0; i < 80; i++) {header[i] = prefix.charCodeAt(i)}
+      blobArray.push(header);
+      blobArray.push(facets);
+      // Attach vector array
+      for (i = 0; i < faces; i++) {
+        verts = new Float32Array(12);
+        tail = new Uint16Array([0]);
+        // Normal vector
+        verts[0] = normals[i][0];
+        verts[1] = normals[i][1];
+        verts[2] = normals[i][2];
+        // Vertices vector
+        for (j = 0; j < 3; j++) {
+          verts[(j+1)*3 + 0] = vertices[i*3 + j][0];
+          verts[(j+1)*3 + 1] = vertices[i*3 + j][1];
+          verts[(j+1)*3 + 2] = vertices[i*3 + j][2];
+        };
+        blobArray.push(verts);
+        blobArray.push(tail);
+      }
+
+      return new Blob(blobArray, {type: "application/octet-binary"});
     };
 
     // Render object
@@ -722,7 +783,7 @@
         // Viewer iconGrid
         var iconGrid = document.createElement("div");
         iconGrid.style.cssText += "background:transparent;position:absolute;padding:15px 10px;";
-        iconGrid.style.cssText += "height:50px;width:"+this.__width+"px;top:0;overflow:auto;";
+        iconGrid.style.cssText += "height:50px;width:"+this.__width+"px;top:0;overflow:hidden;";
         iconGrid.className += "box";
 
         var logo = document.createElement("div");
@@ -747,7 +808,7 @@
         var player = document.createElement("div");
 
         rotator.style.cssText += "background:transparent;position:absolute;padding:15px 10px;right:0;";
-        rotator.style.cssText += "height:50px;width:"+this.__width+"px;top:0;overflow:auto;";
+        rotator.style.cssText += "height:50px;width:"+this.__width+"px;top:0;overflow:hidden;";
         rotator.style.cssText += "margin-top:"+(this.__height-30)+"px;";
 
         player.className += "icon-clickable pull-right icon-mad-stop";
@@ -857,7 +918,7 @@
                 "background: -o-radial-gradient(center, ellipse cover, BRIGHT POS1%, DARK POS2%);" +
                 "background: -ms-radial-gradient(center, ellipse cover, BRIGHT POS1%, DARK POS2%);" +
                 "background: radial-gradient(ellipse at center, BRIGHT POS1%, DARK POS2%);" +
-                "filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='BRIGHT', endColorstr='DARK',GradientType=1 )"; 
+                "filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='BRIGHT', endColorstr='DARK',GradientType=1)"; 
 
       if (colors.dark) {
         darker = this.getHexString(colors.dark);
@@ -1068,10 +1129,38 @@
         this.log(INVALID_OPTION2);
         return null;
       }
-      // Check valid file input
+
+      // Attach file upload event handler
       var target = document.getElementById(options.file);
       if (target.tagName.toLowerCase() == "input" && target.type.toLowerCase() == "file") this.onFileInputChange(target, options);
       else this.log(INVALID_INPUT);
+
+      // (Optional) Attach drag-and-drop event handler
+      if (options.dropzone) {
+        var dragOverHandler = function(e) {
+          e.stopPropagation();
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        };
+        var fileDropHandler = function(e) {
+          var i, files = e.dataTransfer.files;
+          e.stopPropagation();
+          e.preventDefault();
+          for (i = 0; i < files.length; i++) {
+            // create Madeleine for each file
+            var _options = window.Lily.extend({}, options, {type: "upload", data: files[i]});
+            var madeleine = new Madeleine(_options);
+          }
+        };
+
+        var attach = (target.addEventListener ? "addEventListener" : "attachEvent");
+        var prefix = (target.addEventListener ? "" : "on");
+        target = document.getElementById(options.dropzone);
+
+        // Attach event handler
+        target[attach](prefix + "dragover", dragOverHandler, false);
+        target[attach](prefix + "drop", fileDropHandler, false);
+      }
     };
 
     // jQuery source of extend function
@@ -1256,12 +1345,12 @@
         QueueFlushed      : { verbose: 3, message: logPrefix + "I don't have any work now." },
         QueueProcess      : { verbose: 3, message: logPrefix + "I'm doing my work..." },
         TypeCheck         : { verbose: 3, message: logPrefix + "I'm checking your model type..." },
-        TypeCheckDone     : { verbose: 3, message: logPrefix + "I finished checking your model type." },
+        TypeCheckDone     : { verbose: 3, message: logPrefix + "I finished checking your model type: " },
         ParseSTLDone      : { verbose: 3, message: logPrefix + "I finished parsing your model." },
         DataReceived      : { verbose: 3, message: logPrefix + "Your model file is successfully loaded." },
         AjaxDataReceived  : { verbose: 3, message: logPrefix + "Your model file is successfully received." },
-        StartDraw         : { verbose: 3, message: logPrefix + "I just started to draw your model." },
-        StartParse        : { verbose: 3, message: logPrefix + "I just started to parse your model." },
+        StartDraw         : { verbose: 3, message: logPrefix + "I just started drawing your model." },
+        StartParse        : { verbose: 3, message: logPrefix + "I just started parsing your model." },
         DisableLog        : { verbose: 3, message: logPrefix + "I'm logging the animation status." },
         EnableLog         : { verbose: 3, message: logPrefix + "I stopped logging the animation status." },
 
