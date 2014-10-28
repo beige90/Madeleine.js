@@ -63,17 +63,16 @@
         <h2><a name="demo" class="anchor" href="#demo"><span class="octicon octicon-link"></span></a>DEMO</h2>
 
         <h3>Ajax loading</h3>
-        <div id="targetA"></div>
-        <div id="targetB"></div>
+        <div id="ajax-target"></div>
         <div class="theme">
-          <div class="themeButton light"  onclick="mad2.adaptViewerTheme('light');">Light</div>
-          <div class="themeButton lime"   onclick="mad2.adaptViewerTheme('lime');">Lime</div>
-          <div class="themeButton toxic"  onclick="mad2.adaptViewerTheme('toxic');">Toxic</div>
-          <div class="themeButton lego"   onclick="mad2.adaptViewerTheme('lego');">Lego</div>
-          <div class="themeButton cobalt" onclick="mad2.adaptViewerTheme('cobalt');">Cobalt</div>
-          <div class="themeButton soft"   onclick="mad2.adaptViewerTheme('soft');">Soft</div>
-          <div class="themeButton rose"   onclick="mad2.adaptViewerTheme('rose');">Rose</div>
-          <div class="themeButton dark"   onclick="mad2.adaptViewerTheme('dark');">Dark</div>
+          <div class="themeButton light"  onclick="mad.adaptViewerTheme('light');">Light</div>
+          <div class="themeButton lime"   onclick="mad.adaptViewerTheme('lime');">Lime</div>
+          <div class="themeButton toxic"  onclick="mad.adaptViewerTheme('toxic');">Toxic</div>
+          <div class="themeButton lego"   onclick="mad.adaptViewerTheme('lego');">Lego</div>
+          <div class="themeButton cobalt" onclick="mad.adaptViewerTheme('cobalt');">Cobalt</div>
+          <div class="themeButton soft"   onclick="mad.adaptViewerTheme('soft');">Soft</div>
+          <div class="themeButton rose"   onclick="mad.adaptViewerTheme('rose');">Rose</div>
+          <div class="themeButton dark"   onclick="mad.adaptViewerTheme('dark');">Dark</div>
         </div>
         <h3>File upload</h3>
         <form><input type="file" id="files" name="files" multiple></form>
@@ -109,8 +108,9 @@
 <span class="nt">&lt;script&gt;</span>
 <span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(){</span>
     <span class="nx">Lily</span><span class="p">.</span><span class="nx">ready</span><span class="p">({</span>
-        <span class="nx">target</span><span class="o">:</span> <span class="s1">'target'</span>  <span class="c1">// target div id</span>
+        <span class="nx">target</span><span class="o">:</span> <span class="s1">'target'</span></span><span class="p">,</span>  <span class="c1">// target div id</span>
         <span class="nx">file</span><span class="o">:</span> <span class="s1">'files'</span><span class="p">,</span>  <span class="c1">// file input id</span>
+        <span class="nx">path</span><span class="o">:</span> <span class="s1">'./src'</span>  <span class="c1">// path to source directory from current html file</span>
     <span class="p">});</span>
 <span class="p">};</span> 
 <span class="nt">&lt;/script&gt;</span>
@@ -129,7 +129,8 @@
 <span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(){</span>
     <span class="kd">var</span> <span class="nx">madeleine</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Madeleine</span><span class="p">({</span>
       <span class="nx">target</span><span class="o">:</span> <span class="s1">'target'</span><span class="p">,</span> <span class="c1">// target div id</span>
-      <span class="nx">data</span><span class="o">:</span> <span class="s1">'path/to/file.stl'</span> <span class="c1">// data path</span>
+      <span class="nx">data</span><span class="o">:</span> <span class="s1">'path/to/file.stl'</span><span class="p">,</span> <span class="c1">// data path</span>
+      <span class="nx">path</span><span class="o">:</span> <span class="s1">'./src'</span>  <span class="c1">// path to source directory from current html file</span>
     <span class="p">});</span>
 <span class="p">};</span> 
 <span class="nt">&lt;/script&gt;</span>
@@ -156,17 +157,15 @@
 
     <script>
       window.onload = function(){
-        mad1 = new Madeleine({
-          target: 'targetA',
-          data: 'models/lamp.stl'
-        });
-        mad2 = new Madeleine({
-          target: 'targetB',
-          data: 'models/treefrog.stl'
+        mad = new Madeleine({
+          target: 'ajax-target',
+          data: '../models/skull.stl',
+          path: './src'
         });
         Lily.ready({
-          target: 'targetC',
-          file: 'files'
+          target: 'upload-target',
+          file: 'files',
+          path: './src'
         });
       }; 
     </script>

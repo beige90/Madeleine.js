@@ -90,6 +90,7 @@
       this.data       = options.data;
       this.type       = options.type ? options.type : 'file';
       this.container  = document.getElementById(this.__containerID);
+      this.relPath    = options.path ? options.path + (options.path[options.path.length-1] == "/" ? "" : "/") : "./";
       // User configuration 
       this.options = Lily.extend(true, {}, { // Default option
         material    : OBJECT_MATERIAL,
@@ -218,7 +219,7 @@
       var queued = (function(scope) {
         return function() {
           // When data ready, parse and render it. 
-          scope.run("src/lib/MadeleineLoader.js", {
+          scope.run(scope.relPath + "lib/MadeleineLoader.js", {
             arrbuf: scope.__arrayBuffer,
             rawtext: scope.__rawText
           }, function(result) {
@@ -689,7 +690,7 @@
             // console.log("MADELEINE[LOG] Background converting progress: " + result.data + "%");
             break;
           case "convert":
-            if (CONVERT_TO_BINARY) scope.run("src/lib/MadeleineConverter.js", result.data, function(result) { scope.__converted = result });
+            if (CONVERT_TO_BINARY) scope.run(scope.relPath + "lib/MadeleineConverter.js", result.data, function(result) { scope.__converted = result });
             break;
           case "progress":
             progressBar.style.width = (scope.__width * result.data / 100) + "px";
