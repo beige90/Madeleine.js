@@ -218,7 +218,7 @@
       var queued = (function(scope) {
         return function() {
           // When data ready, parse and render it. 
-          scope.run("../src/lib/MadeleineLoader.js", {
+          scope.run("src/lib/MadeleineLoader.js", {
             arrbuf: scope.__arrayBuffer,
             rawtext: scope.__rawText
           }, function(result) {
@@ -689,7 +689,7 @@
             // console.log("MADELEINE[LOG] Background converting progress: " + result.data + "%");
             break;
           case "convert":
-            if (CONVERT_TO_BINARY) scope.run("../src/lib/MadeleineConverter.js", result.data, function(result) { scope.__converted = result });
+            if (CONVERT_TO_BINARY) scope.run("src/lib/MadeleineConverter.js", result.data, function(result) { scope.__converted = result });
             break;
           case "progress":
             progressBar.style.width = (scope.__width * result.data / 100) + "px";
