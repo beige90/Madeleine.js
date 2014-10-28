@@ -90,6 +90,7 @@
       this.data       = options.data;
       this.type       = options.type ? options.type : 'file';
       this.container  = document.getElementById(this.__containerID);
+      this.relPath    = options.path ? options.path + (options.path[options.path.length-1] == "/" ? "" : "/") : "./";
       // User configuration 
       this.options = Lily.extend(true, {}, { // Default option
         material    : OBJECT_MATERIAL,
@@ -218,7 +219,7 @@
       var queued = (function(scope) {
         return function() {
           // When data ready, parse and render it. 
-          scope.run("../src/lib/MadeleineLoader.js", {
+          scope.run(scope.relPath + "lib/MadeleineLoader.js", {
             arrbuf: scope.__arrayBuffer,
             rawtext: scope.__rawText
           }, function(result) {
@@ -249,7 +250,7 @@
             // Compute time consumed in parsing and rendering
             scope.__timer.end = (new Date()).getTime();
             var consumed = (scope.__timer.end - scope.__timer.start) / 1000;
-            console.log("MADELEINE[LOG] Time spent: " + consumed + "seconds.");
+            console.log("MADELEINE[LOG] Time spent: " + consumed + " sec.");
 
             // Render object
             scope.render();
@@ -284,13 +285,13 @@
         var arrbuf = new FileReader();
         var rawtxt = new FileReader();
         // arraybuffer onload function
-        arrbuf.onload = function() { scope.__arrayBuffer = reader.result };
+        arrbuf.onload = function() { scope.__arrayBuffer = arrbuf.result };
         // read arrayBuffer from Blob
         arrbuf.readAsArrayBuffer(file);
 
         // rawtext onload function
         rawtxt.onload = function() {
-          scope.__rawText = reader.result;
+          scope.__rawText = rawtxt.result;
           queuedWork();
         };
         // read raw text data from Blob
@@ -308,6 +309,7 @@
           if (arrbuf.readyState == 4 && (arrbuf.status == 200 || arrbuf.status == 0)) {
             scope.__arrayBuffer = arrbuf.response;
             if (type == "binary") queuedWork();
+            if (!type) getRawText();
           }
         };
         arrbuf.responseType = "arraybuffer";
@@ -333,12 +335,8 @@
         case "ascii":
           getRawText();
           break;
-        case "binary":
-          getArrayBuffer();
-          break;
         default:
           getArrayBuffer();
-          getRawText();
           break;
       }
     };
@@ -379,8 +377,8 @@
       var sizeX = this.__geometry.boundingBox.max.x - this.__geometry.boundingBox.min.x;
       var sizeY = this.__geometry.boundingBox.max.y - this.__geometry.boundingBox.min.y;
       var sizeZ = this.__geometry.boundingBox.max.z - this.__geometry.boundingBox.min.z;
-      var centerY = parseFloat(0.6 * sizeY);
-      var centerZ = parseFloat(0.6 * sizeZ);
+      var centerY = parseFloat(0.75 * sizeY);
+      var centerZ = parseFloat(0.85 * sizeZ);
       var zoomFactor = 1.57 * (125 / radius);
 
       this.__object.scale.set(zoomFactor, zoomFactor, zoomFactor);
@@ -397,8 +395,8 @@
 
       // Parsing finished
       this.__scene.add(this.__object);
+      this.__object.rotation.x = -1.2;
       this.__object.rotation.z = 1.2;
-      this.__object.rotation.x = -1;
     };
 
     // Generate Renderer
@@ -688,11 +686,11 @@
       worker.onmessage = function(event) {
         var result = event.data;
         switch (result.type) {
-          case "convert":
-            if (CONVERT_TO_BINARY) scope.run("../src/lib/MadeleineConverter.js", result.data, function(result) { scope.__converted = result });
-            break;
           case "convert-progress":
             // console.log("MADELEINE[LOG] Background converting progress: " + result.data + "%");
+            break;
+          case "convert":
+            if (CONVERT_TO_BINARY) scope.run(scope.relPath + "lib/MadeleineConverter.js", result.data, function(result) { scope.__converted = result });
             break;
           case "progress":
             progressBar.style.width = (scope.__width * result.data / 100) + "px";
@@ -943,8 +941,12 @@
         return null;
       }
 
-      // Attach file upload event handler
       var target = document.getElementById(options.file);
+      if (!target) {
+        console.log("MADELEINE[ERR] Please provide valid input file element.");
+        return null;
+      }
+      // Attach file upload event handler
       if (target.tagName.toLowerCase() == "input" && target.type.toLowerCase() == "file") this.onFileInputChange(target, options);
 
       // (Optional) Attach drag-and-drop event handler
