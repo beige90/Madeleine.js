@@ -3,10 +3,10 @@
 @font-face {
   font-family: "madeleine";
   src:url("../icons/madeleine.eot");
-  src:url("../icons/madeleine.eot?#iefix") format("embedded-opentype"),
-    url("../icons/madeleine.woff") format("woff"),
-    url("../icons/madeleine.ttf") format("truetype"),
-    url("../icons/madeleine.svg#madeleine") format("svg");
+  src:url("../icons/madeleine.eot?#iefix")    format("embedded-opentype"),
+      url("../icons/madeleine.svg#madeleine") format("svg"),
+      url("../icons/madeleine.ttf")           format("truetype"),
+      url("../icons/madeleine.woff")          format("woff");
   font-weight: normal;
   font-style: normal;
 
