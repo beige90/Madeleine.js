@@ -59,10 +59,10 @@
       this.__uniqueID     = Lily.push(this);
       this.__containerID  = options.target;
       this.__timer        = {start: (new Date).getTime(), end: null};
-      this.__workQueue    = [];
       // About 3d model
       this.__status       = null;
       this.__object       = null;
+      this.__rawText      = null;
       this.__converted    = null;
       this.__arrayBuffer  = null;
       // Initialize data info object
@@ -128,7 +128,6 @@
         } else {
           scope.trackMouse = true;
           scope.__rotating = false;
-          console.log(scope.rotating);
           scope.mouseY = e.clientY;
           scope.mouseX = e.clientX;
         }
@@ -216,10 +215,13 @@
     // Rendering start
     Madeleine.prototype.draw = function() {
       // Wait until data is fully loaded
-      this.enqueue((function(scope) {
+      var queued = (function(scope) {
         return function() {
           // When data ready, parse and render it. 
-          scope.run("../src/lib/MadeleineLoader.js", scope.__arrayBuffer, function(result) {
+          scope.run("../src/lib/MadeleineLoader.js", {
+            arrbuf: scope.__arrayBuffer,
+            rawtext: scope.__rawText
+          }, function(result) {
             var hasColors = result.hasColors;
             var vertices = result.vertices;
             var normals = result.normals;
@@ -246,10 +248,8 @@
 
             // Compute time consumed in parsing and rendering
             scope.__timer.end = (new Date()).getTime();
-            if (scope.options.showStatus) {
-              var consumed = (scope.__timer.end - scope.__timer.start) / 1000;
-              console.log("MADELEINE[LOG] Time spent: " + consumed + "seconds.");
-            }
+            var consumed = (scope.__timer.end - scope.__timer.start) / 1000;
+            console.log("MADELEINE[LOG] Time spent: " + consumed + "seconds.");
 
             // Render object
             scope.render();
@@ -263,56 +263,84 @@
             scope.enableUserInteraction();
           });
         };
-      })(this));
+      })(this);
 
       // Check input type and get STL Binary data 
       switch (this.type) {
         case "upload":
-          this.getDataFromBlob(this.data);break;
+          this.getDataFromBlob(this.data, queued);break;
         case "file":
-          this.getDataFromUrl(this.data);break;
+          this.getDataFromUrl(this.data, queued);break;
         default:
           break;
       }
     };
 
     // Get arrayBuffer from Blob
-    Madeleine.prototype.getDataFromBlob = function(file) {
+    Madeleine.prototype.getDataFromBlob = function(file, queuedWork) {
+      var scope = this;
+
       if (Detector.fileapi) {
-        var reader = new FileReader();
-
-        // onload function
-        reader.onload = (function(scope) {
-          return function() {
-            scope.__arrayBuffer = reader.result;
-            scope.processQueue();
-          };
-        })(this);
-
+        var arrbuf = new FileReader();
+        var rawtxt = new FileReader();
+        // arraybuffer onload function
+        arrbuf.onload = function() { scope.__arrayBuffer = reader.result };
         // read arrayBuffer from Blob
-        reader.readAsArrayBuffer(file);
+        arrbuf.readAsArrayBuffer(file);
+
+        // rawtext onload function
+        rawtxt.onload = function() {
+          scope.__rawText = reader.result;
+          queuedWork();
+        };
+        // read raw text data from Blob
+        rawtxt.readAsText(file);
       }
     };
 
     // Get arrayBuffer from external file 
-    Madeleine.prototype.getDataFromUrl = function(url, type) {
-      var xhr = new XMLHttpRequest();
-
-      xhr.onerror = function(e) { console.log("MADELEINE[ERR] Ajax failed.") };
-      xhr.onreadystatechange = (function(scope) {
-        return function() {
-          if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
-            scope.__arrayBuffer = xhr.response;
-            scope.processQueue();
+    Madeleine.prototype.getDataFromUrl = function(url, queuedWork, type) {
+      var scope = this;
+      var getArrayBuffer = function() {
+        var arrbuf = new XMLHttpRequest();
+        arrbuf.onerror = function(e) { console.log("MADELEINE[ERR] Ajax failed.") };
+        arrbuf.onreadystatechange = function() {
+          if (arrbuf.readyState == 4 && (arrbuf.status == 200 || arrbuf.status == 0)) {
+            scope.__arrayBuffer = arrbuf.response;
+            if (type == "binary") queuedWork();
           }
         };
-      })(this);
+        arrbuf.responseType = "arraybuffer";
+        arrbuf.open("GET", url, true);
+        arrbuf.send(null);
+      };
+      var getRawText = function() {
+        var rawtxt = new XMLHttpRequest();
+        rawtxt.onerror = function(e) { console.log("MADELEINE[ERR] Ajax failed.") };
+        rawtxt.onreadystatechange = function() {
+          if (rawtxt.readyState == 4 && (rawtxt.status == 200 || rawtxt.status == 0)) {
+            scope.__rawText = rawtxt.response;
+            queuedWork();
+          }
+        };
+        rawtxt.responseType = "text";
+        rawtxt.open("GET", url, true);
+        rawtxt.send(null);
+      };
 
-      if (type == "ascii") xhr.responseType = "text";
-      else xhr.responseType = "arraybuffer";
-
-      xhr.open("GET", url, true);
-      xhr.send(null);
+      // Get data from external resource
+      switch(type) {
+        case "ascii":
+          getRawText();
+          break;
+        case "binary":
+          getArrayBuffer();
+          break;
+        default:
+          getArrayBuffer();
+          getRawText();
+          break;
+      }
     };
 
     // Render object
@@ -867,25 +895,6 @@
 
       if (intensity && typeof intensity === "number" && 0 < intensity && intensity < 0.05) return;
       else this.options.rotateSensitivity = USER_ROTATE_SENSITIVITY;
-    };
-
-    // add work to queue
-    Madeleine.prototype.enqueue = function(work) {
-      this.__workQueue.push(work);
-    };
-
-    // flush all works from queue
-    Madeleine.prototype.flushQueue = function() {
-      this.__workQueue = [];
-    };
-
-    // do all works in queue
-    Madeleine.prototype.processQueue = function() {
-      var queuecount, i;
-      queuecount = this.__workQueue.length;
-      for (i = 0; i < queuecount; i++) {
-        this.__workQueue[i]();
-      }
     };
 
     // Add directional light

@@ -15,7 +15,8 @@ var workerFacadeMessage;
 
 MadeleineLoader = function(event) {
 
-  var arrbuf = event.data;
+  var arrbuf = event.data.arrbuf;
+  var rawText = event.data.rawtext;
   var reader = new DataReader(arrbuf);
 
   var checkSTLType, parseBinarySTL, parseASCIISTL;
@@ -151,16 +152,9 @@ MadeleineLoader = function(event) {
 
   // Parse ASCII stl file
   parseASCIISTL = function() {
-    var normalX, normalY, normalZ, vertice;
-    var buff, data, temp;
-    var figures, count;
+    var normalX, normalY, normalZ;
+    var figures, count, data;
     var index, i, j;
-
-    // convert binary data to ascii string
-    buff = new Uint8Array(arrbuf);
-    for(var i = 0; i < buff.byteLength; i++) {
-      data += String.fromCharCode(buff[i]);
-    }
 
     // To parse the ASCII STL file, we need to read the data itself.
     // STL file is written as below. We need to remove the structures
@@ -176,22 +170,23 @@ MadeleineLoader = function(event) {
     //      endfacet
     //      endsolid name
 
-    temp = data.replace(/\r/g, "\n");                         // make linebreak
-    temp = temp.replace(/(\s)+\1/g, "\n");                    // remove first whitespaces of each line
-    temp = temp.replace(/(solid|endsolid)[^.\n]+(\n?)/g, ""); // remove first and last lines
-    temp = temp.replace(/\n/g, " ");                          // remove linebreaks
-    temp = temp.replace(/facet normal /g, "");                // remove 'facet normal'
-    temp = temp.replace(/outer loop /g, "");                  // remove 'outer loop'
-    temp = temp.replace(/vertex /g, "");                      // remove 'vertex'
-    temp = temp.replace(/endloop /g, "");                     // remove 'endloop'
-    temp = temp.replace(/endfacet(\s?)/g, "");                // remove 'endfacet'
+    data = rawText.replace(/\r/g, "\n");                      // make linebreak
+    data = data.replace(/(\s)+\1/g, "\n");                    // remove first whitespaces of each line
+    data = data.replace(/(solid|endsolid)[^.\n]+(\n?)/g, ""); // remove first and last lines
+    data = data.replace(/\n/g, " ");                          // remove linebreaks
+    data = data.replace(/facet normal /g, "");                // remove 'facet normal'
+    data = data.replace(/outer loop /g, "");                  // remove 'outer loop'
+    data = data.replace(/vertex /g, "");                      // remove 'vertex'
+    data = data.replace(/endloop /g, "");                     // remove 'endloop'
+    data = data.replace(/endfacet(\s?)/g, "");                // remove 'endfacet'
 
-    figures = temp.split(" ");
+    figures = data.split(" ");
     count = (figures.length - 1) / 12;
     index = 0;
 
     normals = new Float32Array(count * 3 * 3);
     vertices = new Float32Array(count * 3 * 3);
+    vertexCount = 0;
 
     for (i = 0; i < count; i++) {
       // Send current progress
