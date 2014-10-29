@@ -19,9 +19,17 @@ MadeleineLoader = function(event) {
   var rawText = event.data.rawtext;
   var reader = new DataReader(arrbuf);
 
+  var maxX = 0, maxY = 0, maxZ = 0;
+  var minX = 0, minY = 0, minZ = 0;
+  var avgX = 0, avgY = 0, avgZ = 0;
+  var centerX, centerY, centerZ;
+  var normals, vertices;
+  var facets = 0;
+
   var checkSTLType, parseBinarySTL, parseASCIISTL;
   var hasColors = false, colors, alpha;
-  var normals, vertices;
+  var normalX, normalY, normalZ;
+  var vertexX, vertexY, vertexZ;
 
   // STL file type checker
   checkSTLType = function() {
@@ -72,11 +80,9 @@ MadeleineLoader = function(event) {
 
   // Parse binary stl file
   parseBinarySTL = function() {
-    var facets, index, i, j;
-    var normalX, normalY, normalZ;
-
     var color, colorR, colorG, colorB;
     var defaultR, defaultG, defaultB;
+    var index, i, j;
 
     // Point head of reader.
     reader.reset();
@@ -130,13 +136,27 @@ MadeleineLoader = function(event) {
       // Get vertices for each coordinate
       for (j = 0; j < 3; j++) {
         // Add vertex vector
-        vertices[index]     = reader.readFloat32();
-        vertices[index + 1] = reader.readFloat32();
-        vertices[index + 2] = reader.readFloat32();
+        vertexX = reader.readFloat32();
+        vertexY = reader.readFloat32();
+        vertexZ = reader.readFloat32();
+        vertices[index]     = vertexX;
+        vertices[index + 1] = vertexY;
+        vertices[index + 2] = vertexZ;
         // Add normal vector
         normals[index]      = normalX;
         normals[index + 1]  = normalY;
         normals[index + 2]  = normalZ;
+        // Get bounding box
+        maxX = Math.max(maxX, vertexX);
+        maxY = Math.max(maxY, vertexY);
+        maxZ = Math.max(maxZ, vertexZ);
+        minX = Math.min(minX, vertexX);
+        minY = Math.min(minY, vertexY);
+        minZ = Math.min(minZ, vertexZ);
+        // Aggregate vertex points
+        avgX += vertexX;
+        avgY += vertexY;
+        avgZ += vertexZ;
         // Set color if exists
         if (hasColors) {
           colors[index]     = colorR;
@@ -152,8 +172,7 @@ MadeleineLoader = function(event) {
 
   // Parse ASCII stl file
   parseASCIISTL = function() {
-    var normalX, normalY, normalZ;
-    var figures, count, data;
+    var figures, data;
     var index, i, j;
 
     // To parse the ASCII STL file, we need to read the data itself.
@@ -181,19 +200,19 @@ MadeleineLoader = function(event) {
     data = data.replace(/endfacet(\s?)/g, "");                // remove 'endfacet'
 
     figures = data.split(" ");
-    count = (figures.length - 1) / 12;
+    facets = (figures.length - 1) / 12;
     index = 0;
 
-    normals = new Float32Array(count * 3 * 3);
-    vertices = new Float32Array(count * 3 * 3);
+    normals = new Float32Array(facets * 3 * 3);
+    vertices = new Float32Array(facets * 3 * 3);
     vertexCount = 0;
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < facets; i++) {
       // Send current progress
       if (i % 100 == 0) {
         workerFacadeMessage({
           type: "progress",
-          data: Math.round((i/count) * 100)
+          data: Math.round((i/facets) * 100)
         });
       }
       // Get normal vector
@@ -202,13 +221,27 @@ MadeleineLoader = function(event) {
       normalZ = figures[i*12 + 2];
       for (j = 1; j <= 3; j++) {
         // Add vertex vector
-        vertices[index]     = figures[i*12 + j*3];
-        vertices[index + 1] = figures[i*12 + j*3 + 1];
-        vertices[index + 2] = figures[i*12 + j*3 + 2];
+        vertexX = figures[i*12 + j*3];
+        vertexY = figures[i*12 + j*3 + 1];
+        vertexZ = figures[i*12 + j*3 + 2];
+        vertices[index]     = vertexX;
+        vertices[index + 1] = vertexY;
+        vertices[index + 2] = vertexZ;
         // Add normal vector
         normals[index]      = normalX;
         normals[index + 1]  = normalY;
         normals[index + 2]  = normalZ;
+        // Get bounding box
+        maxX = Math.max(maxX, vertexX);
+        maxY = Math.max(maxY, vertexY);
+        maxZ = Math.max(maxZ, vertexZ);
+        minX = Math.min(minX, vertexX);
+        minY = Math.min(minY, vertexY);
+        minZ = Math.min(minZ, vertexZ);
+        // Aggregate vertex points
+        avgX += vertexX;
+        avgY += vertexY;
+        avgZ += vertexZ;
         // Increase index
         index += 3;
       }
@@ -224,6 +257,47 @@ MadeleineLoader = function(event) {
   // Check STL File type and parse it.
   if (checkSTLType(reader)) parseBinarySTL();
   else parseASCIISTL();
+    
+  // Get the densest point of object (most promising center point of object)
+  avgX = avgX / (facets * 3);
+  avgY = avgY / (facets * 3);
+  avgZ = avgZ / (facets * 3);
+
+  var calibrate = (5 < Math.abs((maxX + minX) / 2) && Math.round(Math.abs(avgX)) != 0);
+
+  // Sometimes objects are placed far from the center of x-axis
+  // If object is far from the center of x-axis, shift the position
+  if (calibrate) {
+    // Report calibration
+    workerFacadeMessage({
+      type: "message",
+      data: "Calibrating object position (X-Delta: " + Math.round(avgX) + 
+            ", Y-Delta: " + Math.round(avgY) + ")"
+    });
+    // Shift all points to center of screen
+    for (i = 0; i < vertices.length/3; i++) {
+      vertices[i*3]   = vertices[i*3] - avgX;
+      vertices[i*3+1] = vertices[i*3+1] - avgY;
+      vertices[i*3+2] = vertices[i*3+2] - avgZ;
+    }
+  } 
+
+  // Send acquired bounding box 
+  workerFacadeMessage({
+    type: "data",
+    prop: "bounds",
+    data: {
+      max: {x: (calibrate ? maxX - avgX : maxX), y: (calibrate ? maxY - avgY : maxY), z: (calibrate ? maxZ - avgZ : maxZ)},
+      min: {x: (calibrate ? minX - avgX : minX), y: (calibrate ? minY - avgY : minY), z: (calibrate ? minZ - avgZ : minZ)}
+    } 
+  });
+
+  // Send acquired center 
+  workerFacadeMessage({
+    type: "data",
+    prop: "center",
+    data: [avgX, avgY, avgZ]
+  });
 
   // Send parsing result 
   workerFacadeMessage({

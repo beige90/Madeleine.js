@@ -52,8 +52,9 @@ All you need to do is simply asking Lily (is Madeleine's sister) to get ready fo
 <script>
 window.onload = function(){
     Lily.ready({
-        target: 'target'  // target div id
+        target: 'target',  // target div id
         file: 'files',  // file input id
+        path: '../src' // path to source directory from current html file
     });
 }; 
 </script>
@@ -70,7 +71,8 @@ If you know the url or path to the stl file, call Madeleine directly with target
 window.onload = function(){
     var madeleine = new Madeleine({
       target: 'target', // target div id
-      data: 'path/to/file.stl' // data path
+      data: 'path/to/file.stl', // data path
+      path: '../src' // path to source directory from current html file
     });
 }; 
 </script>

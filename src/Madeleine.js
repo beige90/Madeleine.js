@@ -62,6 +62,8 @@
       // About 3d model
       this.__status       = null;
       this.__object       = null;
+      this.__bounds       = null;
+      this.__center       = null;
       this.__rawText      = null;
       this.__converted    = null;
       this.__arrayBuffer  = null;
@@ -71,6 +73,7 @@
       this.__scene    = new THREE.Scene();
       this.__camera   = null;
       this.__viewer   = null;
+      this.__canvas   = null;
       // About rendering
       this.__geometry = null;
       this.__renderer = null;
@@ -79,13 +82,14 @@
       this.__height    = null;
       this.__sizeRatio = 1;
       // About user interaction
-      this.__movable    = true;
-      this.__zoomable   = true;
-      this.__rotatable  = true;
-      this.__rotating   = false;
-      this.__trackMouse = false;
-      this.__mouseX     = 0;
-      this.__mouseY     = 0;
+      this.__firstPerson = false;
+      this.__movable     = true;
+      this.__zoomable    = true;
+      this.__rotatable   = true;
+      this.__rotating    = false;
+      this.__trackMouse  = false;
+      this.__mouseX      = 0;
+      this.__mouseY      = 0;
       // Crucial properties to render 3d model
       this.data       = options.data;
       this.type       = options.type ? options.type : 'file';
@@ -125,7 +129,7 @@
       this.mouseDownHandler = function(e) {
         e.preventDefault();
         if ((e.which && e.which == 3) || (e.button && e.button == 2)) {
-          alert("Right click on 3D viewer is disabled.");
+          // alert("Right click on 3D viewer is disabled.");
         } else {
           scope.trackMouse = true;
           scope.__rotating = false;
@@ -150,8 +154,47 @@
         scope.__rotating = true;
         e.preventDefault();
       };
+      this.touchStartHandler = function(e) {
+        if (e.changedTouches.length == 1) {
+          scope.trackMouse = true;
+          scope.__rotating = false;
+          scope.mouseY = e.changedTouches[0].clientY;
+          scope.mouseX = e.changedTouches[0].clientX;
+        }
+      };
+      this.touchMoveHandler = function(e) {
+        if (scope.trackMouse) {
+          // Top-left corner is (0, 0)
+          // e.clientX grows as touch goes down
+          // e.clientY grows as touch goes right
+          scope.rotateObjectZ(scope.mouseX - e.clientX);
+          scope.rotateObjectX(scope.mouseY - e.clientY);
+          scope.mouseY = e.clientY;
+          scope.mouseX = e.clientX;
+        }
+        e.preventDefault();
+      };
+      this.touchEndHandler = function(e) {
+        scope.trackMouse = false;
+        scope.__rotating = true;
+        e.preventDefault();
+      };
       this.rightClickHandler = function(e) {
         e.preventDefault();
+      };
+      this.viewModeHandler = function(e) {
+        if (scope.__firstPerson) {
+          e.target.className = e.target.className.replace(" focused", "");
+          scope.__firstPerson = false;
+          scope.disableFirstPersonViewerMode();
+        } else {
+          e.target.className += " focused";
+          scope.__firstPerson = true;
+          scope.enableFirstPersonViewerMode();
+        }
+      };
+      this.captureHandler = function(e) {
+        // TODO capture the model
       };
 
       // Check if option values are correct
@@ -368,22 +411,23 @@
 
       // Generate mesh for object
       this.__object = new THREE.Mesh(this.__geometry, material);
-      this.__geometry.computeBoundingBox();
       this.__geometry.computeBoundingSphere();
       this.__geometry.computeVertexNormals();
+      this.__geometry.computeBoundingBox();
 
-      // Adjust camera and object to make object fit into screen properly
+      // Adjust positions of camera and object to make object fit into screen properly
       var radius = this.__geometry.boundingSphere.radius;
-      var sizeX = this.__geometry.boundingBox.max.x - this.__geometry.boundingBox.min.x;
-      var sizeY = this.__geometry.boundingBox.max.y - this.__geometry.boundingBox.min.y;
-      var sizeZ = this.__geometry.boundingBox.max.z - this.__geometry.boundingBox.min.z;
-      var centerY = parseFloat(0.75 * sizeY);
-      var centerZ = parseFloat(0.85 * sizeZ);
-      var zoomFactor = 1.57 * (125 / radius);
+      // 1.865 times zoomed object with radius 85 practically fits best to the screen
+      var zoomFactor = 1.865 * 85 / radius;
 
+      // Zoom object to fit into the screen. ZoomFactor is practically best to fit
       this.__object.scale.set(zoomFactor, zoomFactor, zoomFactor);
-      this.__object.position.setY(-centerY);
-      this.__object.position.setZ(-centerZ);
+      // Height 125 fits well to the screen. If taller, lower the center of y-axis
+      var maxY = this.__geometry.boundingBox.max.y;
+      var minY = this.__geometry.boundingBox.min.y;
+      var height = maxY - minY;
+      var deltaY = (height > 125 ? parseFloat(0.99 * (height - Math.max(maxY, Math.abs(minY)))) : 15);
+      this.__object.position.setY(-deltaY);
 
       // If object is too large to fit in, make camera look further
       // 500 (default camera distance) : 466 (view height)
@@ -401,21 +445,22 @@
 
     // Generate Renderer
     Madeleine.prototype.createRenderer = function() {
-      if (this.__arrayBuffer) {
-        // create renderer
-        this.__renderer = Detector.webgl ? new THREE.WebGLRenderer({
+      // create renderer
+      this.__renderer = Detector.webgl ?
+        new THREE.WebGLRenderer({
           preserveDrawingBuffer: true,
           alpha: true
         }) : new THREE.CanvasRenderer(); 
-        // attach rendered model
-        this.__viewer.appendChild(this.__renderer.domElement);
-        this.__renderer.setSize(this.__width, this.__height);
-        this.__renderer.setClearColor(0x000000, 0);
-        // this.__renderer.shadowMapCullFace = THREE.CullFaceBack;
-        // this.__renderer.shadowMapEnabled = true;
-        // this.__renderer.gammaOutput = true;
-        // this.__renderer.gammaInput = true;
-      }
+      // attach canvas to viewer
+      this.__canvas = this.__renderer.domElement;
+      this.__viewer.appendChild(this.__canvas);
+      // renderer configuration
+      this.__renderer.setSize(this.__width, this.__height);
+      this.__renderer.setClearColor(0x000000, 0);
+      // this.__renderer.shadowMapCullFace = THREE.CullFaceBack;
+      // this.__renderer.shadowMapEnabled = true;
+      // this.__renderer.gammaOutput = true;
+      // this.__renderer.gammaInput = true;
     };
 
     // Generate Madeleine Viewer
@@ -465,7 +510,7 @@
         var info = document.createElement("div");
         var view = document.createElement("div");
         var capture = document.createElement("div");
-        var download = document.createElement("div");
+        //var download = document.createElement("div");
         var fullscreen = document.createElement("div");
 
         info.id = "model-info-" + this.__uniqueID;
@@ -475,8 +520,11 @@
         logo.className += "clickable pull-left madeleine-logo";
         view.className += "clickable pull-right icon-mad-view";
         capture.className += "clickable pull-right icon-mad-capture";
-        download.className += "clickable pull-right icon-mad-download";
+        //download.className += "clickable pull-right icon-mad-download";
         fullscreen.className += "clickable pull-right icon-mad-screen-full";
+
+        Lily.bind(view, "click", this.viewModeHandler);
+        Lily.bind(capture, "click", this.captureHandler);
 
         var rotator = document.createElement("div");
         var faster = document.createElement("div");
@@ -503,7 +551,7 @@
         var up = document.createElement("div");
         
         iconGrid.appendChild(fullscreen);
-        iconGrid.appendChild(download);
+        //iconGrid.appendChild(download);
         iconGrid.appendChild(capture);
         iconGrid.appendChild(view);
         iconGrid.appendChild(logo);
@@ -701,12 +749,21 @@
             };
             // console.log("MADELEINE[LOG] Background work progress: " + result.data + "%");
             break;
+          case "message":
+            console.log("MADELEINE[LOG] Background work message: " + result.data);
+            break;
           case "error":
             console.log("MADELEINE[ERR] Background work error: " + result.data);
             break;
           case "info":
             scope.__info[result.prop] = result.data;
-            if (result.prop == "size") document.getElementById("model-info-" + scope.__uniqueID).innerHTML += " (" +result.data + ")";
+            if (result.prop == "size") {
+              var infoBox = document.getElementById("model-info-" + scope.__uniqueID);
+              infoBox.innerHTML += " (" +result.data + ")";
+            }
+            break;
+          case "data":
+            scope["__" + result.prop] = result.data;
             break;
           case "done":
             onload(result.data);
@@ -750,35 +807,32 @@
     // Perform actual rendering object
     Madeleine.prototype.render = function() {
       this.__rotating && this.rotateObjectZ(-1);
-      this.__renderer.render(
-        this.__scene,
-        this.__camera
-      );
+      this.__renderer.render(this.__scene, this.__camera);
     };
 
     // Rotate object in X direction
     Madeleine.prototype.rotateObjectX = function(delta) {
-      this.__object.rotation.x -= delta * this.options.rotateSensitivity;
+      if (this.__movable) this.__object.rotation.x -= delta * this.options.rotateSensitivity;
     };
 
     // Rotate object in Y direction
     Madeleine.prototype.rotateObjectY = function(delta) {
-      this.__object.rotation.y -= delta * this.options.rotateSensitivity;
+      if (this.__movable) this.__object.rotation.y -= delta * this.options.rotateSensitivity;
     };
 
     // Rotate object in Z direction
     Madeleine.prototype.rotateObjectZ = function(delta) {
-      this.__object.rotation.z -= delta * this.options.rotateSensitivity;
+      if (this.__movable) this.__object.rotation.z -= delta * this.options.rotateSensitivity;
     };
 
-    // Make animation faster as much as 'speed'
-    Madeleine.prototype.animationFaster = function(speed) {
-      this.options.rotateSensitivity *= (speed ? speed : 2);
+    // Make animation faster as much as 'delta'
+    Madeleine.prototype.animationFaster = function(delta) {
+      this.options.rotateSensitivity *= (delta ? delta : 2);
     };
 
-    // Make animation slower as much as 'speed'
-    Madeleine.prototype.animationSlower = function(speed) {
-      this.options.rotateSensitivity /= (speed ? speed : 2);
+    // Make animation slower as much as 'delta'
+    Madeleine.prototype.animationSlower = function(delta) {
+      this.options.rotateSensitivity /= (delta ? delta : 2);
     };
 
     // Disable Madeline Viewer to be zoomed by mouse scroll
@@ -787,7 +841,7 @@
       // remove event handler
       Lily.remove(this.container, "mousewheel", this.scrollHandler);
       Lily.remove(this.container, "DOMMouseScroll", this.scrollHandler);
-      Lily.remove(this.container, "gesturechange", this.gestureHandler); // mobile
+      Lily.remove(this.container, "gesturechange", this.gestureHandler);
     };
 
     // Enable Madeline Viewer to be zoomed by mouse scroll
@@ -796,7 +850,7 @@
       // attach event handler
       Lily.bind(this.container, "mousewheel", this.scrollHandler);
       Lily.bind(this.container, "DOMMouseScroll", this.scrollHandler);
-      Lily.bind(this.container, "gesturechange", this.gestureHandler);  // mobile
+      Lily.bind(this.container, "gesturechange", this.gestureHandler);
     }; 
 
     // Enable Madeline Viewer to be controlled by mouse movement 
@@ -809,29 +863,65 @@
       Lily.bind(this.container, "mousemove", this.mouseMoveHandler);
       Lily.bind(this.container, "mouseup", this.mouseUpHandler);
       // mobile support
-      //Lily.bind(this.container, "touchstart", this.touchStartHandler);
-      //Lily.bind(this.container, "touchmove", this.touchMoveHandler);
-      //Lily.bind(this.container, "touchend", this.touchEndHandler);
+      Lily.bind(this.container, "touchstart", this.touchStartHandler);
+      Lily.bind(this.container, "touchmove", this.touchMoveHandler);
+      Lily.bind(this.container, "touchend", this.touchEndHandler);
+    }; 
+
+    // Disable Madeline Viewer to be controlled by mouse movement 
+    Madeleine.prototype.disableUserInteraction = function() {
+      if (!this.__movable) return;
+      // attach event handler
+      Lily.remove(this.container, "mousedown", this.mouseDownHandler);
+      Lily.remove(this.container, "mousemove", this.mouseMoveHandler);
+      Lily.remove(this.container, "mouseup", this.mouseUpHandler);
+      // mobile support
+      Lily.remove(this.container, "touchstart", this.touchStartHandler);
+      Lily.remove(this.container, "touchmove", this.touchMoveHandler);
+      Lily.remove(this.container, "touchend", this.touchEndHandler);
+    }; 
+
+    // Enable first-person viewer mode 
+    Madeleine.prototype.enableFirstPersonViewerMode = function() {
+      this.disableUserInteraction();
+      Lily.bind(document, "keypress", this.firstPersonHandler);
+      Lily.bind(document, "keydown", this.firstPersonHandler);
+      this.__firstPerson = true;
+      this.__rotating = false;
+      this.__zoomable = false;
+      this.__movable = false;
+    }; 
+
+    // Disable first-person viewer mode 
+    Madeleine.prototype.disableFirstPersonViewerMode = function() {
+      this.enableUserInteraction();
+      this.__firstPerson = false;
+      this.__rotating = true;
+      this.__zoomable = true;
+      this.__movable = true;
     }; 
 
     // Adjust camera zoom in/out 
     Madeleine.prototype.cameraZoom = function() {
-      var delta, type;
-      if (arguments.length == 1) {
-        if (typeof arguments[0] == "string") {
-          delta = this.options.zoomSensitivity;
-          type = arguments[0];
-        } else {
+      if (!this.__zoomable) return;
+      else {
+        var delta, type;
+        if (arguments.length == 1) {
+          if (typeof arguments[0] == "string") {
+            delta = this.options.zoomSensitivity;
+            type = arguments[0];
+          } else {
+            delta = arguments[0];
+            type = null;
+          }
+        } else if (arguments.length == 2) {
           delta = arguments[0];
-          type = null;
+          type = arguments[1];
         }
-      } else if (arguments.length == 2) {
-        delta = arguments[0];
-        type = arguments[1];
+        if (type == "in") this.__camera.position.z += delta;
+        else this.__camera.position.z -= delta;
+        this.__camera.updateProjectionMatrix();
       }
-      if (type == "in") this.__camera.position.z += delta;
-      else this.__camera.position.z -= delta;
-      this.__camera.updateProjectionMatrix();
     };
 
     // Show animation status
