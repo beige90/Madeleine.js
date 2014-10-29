@@ -52,6 +52,23 @@
   padding: 0;
 }
 
+[data-icon]:hover,
+[data-icon]:focus,
+[class^="icon-"]:hover,
+[class^="icon-"]:focus,
+[class*="icon-"]:hover,
+[class*="icon-"]:focus {
+  text-shadow: 0 0 5px #009999;
+  -webkit-transition: text-shadow .4s ease; /* Safari and Chrome */
+  -moz-transition: text-shadow .4s ease; /* Firefox 4 */
+  -o-transition: text-shadow .4s ease;
+  transition: text-shadow .4s ease;
+}
+
+.focused {
+  text-shadow: 0 0 5px #009999;
+}
+
 .icon-mad-rotate-stop:before {
   content: "p";
 }
