@@ -311,6 +311,10 @@
             scope.enableZoomAsMouseScroll();
             // Enable mouse motion action
             scope.enableUserInteraction();
+
+            //IMPROVED callback end i.e: hide loading of another scope
+            if (scope.options.callbackend) scope.options.callbackend();
+            
           });
         };
       })(this);
@@ -597,9 +601,6 @@
             this.__viewer.appendChild(progress);
         }
         this.adaptViewerTheme();
-        
-        //IMPROVED callback end
-        if (this.options.callbackend) this.options.callbackend();
       }
     };
 
