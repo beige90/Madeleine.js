@@ -179,8 +179,7 @@
           // e.clientX grows as touch goes down
           // e.clientY grows as touch goes right
           scope.rotateObjectZ(scope.mouseX - e.clientX);
-          scope.
-          (scope.mouseY - e.clientY);
+          scope.rotateObjectX(scope.mouseY - e.clientY);
           scope.mouseY = e.clientY;
           scope.mouseX = e.clientX;
         }
