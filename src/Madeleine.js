@@ -39,9 +39,9 @@
     var VIEWER_HEIGHT = 400;
     var VIEWER_WIDTH  = 640;
 
-    var USER_ROTATE_SENSITIVITY = 0.005;
-    var USER_ZOOM_SENSITIVITY   = 100;
-
+    var USER_ROTATE_SENSITIVITY = options.USER_ROTATE_SENSITIVITY || 0.005;//IMPROVED
+    var USER_ZOOM_SENSITIVITY = options.USER_ZOOM_SENSITIVITY || 100;//IMPROVED
+    
     // Necessary option check 
     if (!document.getElementById(options.target)) {
       console.log("MADELEINE[ERR] Target must be a valid DOM Element.");
@@ -119,6 +119,8 @@
       // Event Listeners
       this.scrollHandler = function(e) {
         var delta = e.wheelDelta ? e.wheelDelta/40 : (e.detail ? -e.detail : 0);
+        if (delta < 0) delta -= options.SCROLL_FACTOR;//IMPROVED
+        if (delta > 0) delta += options.SCROLL_FACTOR;//IMPROVED
         scope.cameraZoom(delta);
         e.preventDefault();
       };
@@ -205,6 +207,10 @@
 
     // Initialize rendering
     Madeleine.prototype.init = function() {
+      
+      //IMPROVE callbackstart process i.e.: show another loader in other scope
+      if (this.options.callbackstart) this.options.callbackstart();
+      
       // Get file name 
       this.__info.name = (typeof this.data == "string") ? this.data.split("/").slice(-1)[0] : this.data.name;
 
@@ -325,20 +331,31 @@
       var scope = this;
 
       if (Detector.fileapi) {
-        var arrbuf = new FileReader();
-        var rawtxt = new FileReader();
-        // arraybuffer onload function
-        arrbuf.onload = function() { scope.__arrayBuffer = arrbuf.result };
-        // read arrayBuffer from Blob
-        arrbuf.readAsArrayBuffer(file);
+          var arrbuf = new FileReader();
+          var rawtxt = new FileReader();
+          // arraybuffer onload function
+          arrbuf.onload = function () {
+              scope.__arrayBuffer = arrbuf.result
+              //console.log("scope.__arrayBuffer------>", scope.__arrayBuffer);
+              if (scope.__arrayBuffer && scope.__rawText) {//IMPROVED asynchronous onload arrbuf.onload rawtxt.onload doesnt know witch will finish first causing null __arrayBuffer or null __rawText
+                  console.log('calling o queuedWork no arrbuf onload');
+                  queuedWork();
+              }
+          };
+          // read arrayBuffer from Blob
+          arrbuf.readAsArrayBuffer(file);
 
-        // rawtext onload function
-        rawtxt.onload = function() {
-          scope.__rawText = rawtxt.result;
-          queuedWork();
-        };
-        // read raw text data from Blob
-        rawtxt.readAsText(file);
+          // rawtext onload function
+          rawtxt.onload = function () {
+              scope.__rawText = rawtxt.result;
+              //console.log("scope.__rawText ----->", scope.__rawText);
+              if (scope.__arrayBuffer && scope.__rawText) {//IMPROVED asynchronous onload arrbuf.onload rawtxt.onload doesnt know witch will finish first causing null __arrayBuffer or null __rawText
+                  console.log('calling in no rawtxt onload');
+                  queuedWork();
+              }
+          };
+          // read raw text data from Blob
+          rawtxt.readAsText(file);
       }
     };
 
@@ -427,7 +444,18 @@
       var minY = this.__geometry.boundingBox.min.y;
       var height = maxY - minY;
       var deltaY = (height > 125 ? parseFloat(0.99 * (height - Math.max(maxY, Math.abs(minY)))) : 15);
-      this.__object.position.setY(-deltaY);
+      // deltaY in some cases can make object out of screen height
+      //console.log(deltaY, height, minY, maxY);
+      if (options.XY) {//IMPROVMENT setXY mannually
+          if (options.XY.X) {
+              this.__object.position.setX(options.XY.X);
+          }
+          if (options.XY.Y) {
+              this.__object.position.setY(options.XY.Y);
+          }
+      } else {
+          this.__object.position.setY(-deltaY);
+      }
 
       // If object is too large to fit in, make camera look further
       // 500 (default camera distance) : 466 (view height)
@@ -559,10 +587,19 @@
         iconGrid.appendChild(rotator);
 
         // Append to container
-        this.container.appendChild(this.__viewer);
-        this.__viewer.appendChild(iconGrid);
-        this.__viewer.appendChild(progress);
+        if (this.options.viewer.notappend) {//IMPROVED not append a new canvas put in same
+            $(this.container).html(this.__viewer);
+            this.__viewer.appendChild(iconGrid);
+            this.__viewer.appendChild(progress);
+        } else {
+            this.container.appendChild(this.__viewer);
+            this.__viewer.appendChild(iconGrid);
+            this.__viewer.appendChild(progress);
+        }
         this.adaptViewerTheme();
+        
+        //IMPROVED callback end
+        if (this.options.callbackend) this.options.callbackend();
       }
     };
 
@@ -1009,6 +1046,13 @@
       directionalLight.shadowBias = -0.005;
       directionalLight.shadowDarkness = 0.15;
     };
+    
+    //Set position
+    Madeleine.prototype.setXY = function (X, Y) {//IMPROVED
+        this.__object.position.setY(Y);
+        this.__object.position.setX(X);
+
+    }
 
     return new Madeleine(options);
 
