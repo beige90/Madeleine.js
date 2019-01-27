@@ -144,8 +144,17 @@
           // Top-left corner is (0, 0)
           // e.clientX grows as mouse goes down
           // e.clientY grows as mouse goes right
-          scope.rotateObjectZ(scope.mouseX - e.clientX);
-          scope.rotateObjectX(scope.mouseY - e.clientY);
+          
+          //IMPROVED move object on wheel drag and rotate with left mouse drag
+          if (e.which == 1) {//left button mouse
+              scope.rotateObjectZ(scope.mouseX - e.clientX);
+              scope.rotateObjectX(scope.mouseY - e.clientY);
+          }
+
+          if (e.which == 2) {//whell button mouse
+              scope.moveObject(event, scope.mouseX - e.clientX);
+              scope.moveObject(event, scope.mouseY - e.clientY);
+          }
           scope.mouseY = e.clientY;
           scope.mouseX = e.clientX;
         }
@@ -170,7 +179,8 @@
           // e.clientX grows as touch goes down
           // e.clientY grows as touch goes right
           scope.rotateObjectZ(scope.mouseX - e.clientX);
-          scope.rotateObjectX(scope.mouseY - e.clientY);
+          scope.
+          (scope.mouseY - e.clientY);
           scope.mouseY = e.clientY;
           scope.mouseX = e.clientX;
         }
@@ -846,6 +856,40 @@
     Madeleine.prototype.render = function() {
       this.__rotating && this.rotateObjectZ(-1);
       this.__renderer.render(this.__scene, this.__camera);
+    };
+    
+    // Move object in xy //IMPROVED
+    let oldX = 0, oldY = 0;
+    Madeleine.prototype.moveObject = function ($event, delta) {
+        if (this.__movable) {
+            let directionX = 0, directionY = 0, diffX = 0, diffY = 0;
+            let offsetmove = options.MOVE_FACTOR || 3;
+
+            if ($event.pageX < oldX) {
+                directionX = "left"
+                diffX = oldX - $event.pageX;
+            } else if ($event.pageX > oldX) {
+                directionX = "right"
+                diffX = $event.pageX - oldX;
+            }
+
+            if ($event.pageY < oldY) {
+                directionY = "top"
+                diffY = oldY - $event.pageY;
+            } else if ($event.pageY > oldY) {
+                directionY = "bottom";
+                diffY = $event.pageY - oldY;
+            }
+
+            oldX = $event.pageX;
+            oldY = $event.pageY;
+
+            if (directionX == "left") this.__object.position.x -= offsetmove;
+            if (directionX == "right") this.__object.position.x += offsetmove;
+
+            if (directionY == "bottom") this.__object.position.y -= offsetmove;
+            if (directionY == "top") this.__object.position.y += offsetmove;
+        }
     };
 
     // Rotate object in X direction
