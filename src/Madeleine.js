@@ -1249,6 +1249,11 @@
         var i, files = this.files;
         if (files.length) {
           for (i = 0; i < files.length; i++) {
+            //IMPROVED - Only accepts stl files and invoke callbackerror and throws new error
+            if (files[i].type != 'stl' && files[i].name.indexOf("stl") == -1) {
+                if (options.callbackerror) options.callbackerror({ code: 1001, msg: "Invalid File" });
+                throw new Error("Invalid Format File. Only Accepts STL!");
+            }
             // create Madeleine for each file
             var _options = window.Lily.extend({}, options, {type: "upload", data: files[i]});
             var madeleine = new Madeleine(_options);
