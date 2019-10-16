@@ -39,9 +39,9 @@
     var VIEWER_HEIGHT = 400;
     var VIEWER_WIDTH  = 640;
 
-    var USER_ROTATE_SENSITIVITY = 0.005;
-    var USER_ZOOM_SENSITIVITY   = 100;
-
+    var USER_ROTATE_SENSITIVITY = options.USER_ROTATE_SENSITIVITY || 0.005;//IMPROVED
+    var USER_ZOOM_SENSITIVITY = options.USER_ZOOM_SENSITIVITY || 100;//IMPROVED
+    
     // Necessary option check 
     if (!document.getElementById(options.target)) {
       console.log("MADELEINE[ERR] Target must be a valid DOM Element.");
@@ -119,6 +119,8 @@
       // Event Listeners
       this.scrollHandler = function(e) {
         var delta = e.wheelDelta ? e.wheelDelta/40 : (e.detail ? -e.detail : 0);
+        if (delta < 0) delta -= options.SCROLL_FACTOR;//IMPROVED
+        if (delta > 0) delta += options.SCROLL_FACTOR;//IMPROVED
         scope.cameraZoom(delta);
         e.preventDefault();
       };
@@ -142,8 +144,17 @@
           // Top-left corner is (0, 0)
           // e.clientX grows as mouse goes down
           // e.clientY grows as mouse goes right
-          scope.rotateObjectZ(scope.mouseX - e.clientX);
-          scope.rotateObjectX(scope.mouseY - e.clientY);
+          
+          //IMPROVED move object on wheel drag and rotate with left mouse drag
+          if (e.which == 1) {//left button mouse
+              scope.rotateObjectZ(scope.mouseX - e.clientX);
+              scope.rotateObjectX(scope.mouseY - e.clientY);
+          }
+
+          if (e.which == 2) {//whell button mouse
+              scope.moveObject(event, scope.mouseX - e.clientX);
+              scope.moveObject(event, scope.mouseY - e.clientY);
+          }
           scope.mouseY = e.clientY;
           scope.mouseX = e.clientX;
         }
@@ -205,6 +216,10 @@
 
     // Initialize rendering
     Madeleine.prototype.init = function() {
+      
+      //IMPROVE callbackstart process i.e.: show another loader in other scope
+      if (this.options.callbackstart) this.options.callbackstart();
+      
       // Get file name 
       this.__info.name = (typeof this.data == "string") ? this.data.split("/").slice(-1)[0] : this.data.name;
 
@@ -305,6 +320,10 @@
             scope.enableZoomAsMouseScroll();
             // Enable mouse motion action
             scope.enableUserInteraction();
+
+            //IMPROVED callback end i.e: hide loading of another scope
+            if (scope.options.callbackend) scope.options.callbackend();
+            
           });
         };
       })(this);
@@ -325,20 +344,31 @@
       var scope = this;
 
       if (Detector.fileapi) {
-        var arrbuf = new FileReader();
-        var rawtxt = new FileReader();
-        // arraybuffer onload function
-        arrbuf.onload = function() { scope.__arrayBuffer = arrbuf.result };
-        // read arrayBuffer from Blob
-        arrbuf.readAsArrayBuffer(file);
+          var arrbuf = new FileReader();
+          var rawtxt = new FileReader();
+          // arraybuffer onload function
+          arrbuf.onload = function () {
+              scope.__arrayBuffer = arrbuf.result
+              //console.log("scope.__arrayBuffer------>", scope.__arrayBuffer);
+              if (scope.__arrayBuffer && scope.__rawText) {//IMPROVED asynchronous onload arrbuf.onload rawtxt.onload doesnt know witch will finish first causing null __arrayBuffer or null __rawText
+                  console.log('calling o queuedWork no arrbuf onload');
+                  queuedWork();
+              }
+          };
+          // read arrayBuffer from Blob
+          arrbuf.readAsArrayBuffer(file);
 
-        // rawtext onload function
-        rawtxt.onload = function() {
-          scope.__rawText = rawtxt.result;
-          queuedWork();
-        };
-        // read raw text data from Blob
-        rawtxt.readAsText(file);
+          // rawtext onload function
+          rawtxt.onload = function () {
+              scope.__rawText = rawtxt.result;
+              //console.log("scope.__rawText ----->", scope.__rawText);
+              if (scope.__arrayBuffer && scope.__rawText) {//IMPROVED asynchronous onload arrbuf.onload rawtxt.onload doesnt know witch will finish first causing null __arrayBuffer or null __rawText
+                  console.log('calling in no rawtxt onload');
+                  queuedWork();
+              }
+          };
+          // read raw text data from Blob
+          rawtxt.readAsText(file);
       }
     };
 
@@ -427,7 +457,18 @@
       var minY = this.__geometry.boundingBox.min.y;
       var height = maxY - minY;
       var deltaY = (height > 125 ? parseFloat(0.99 * (height - Math.max(maxY, Math.abs(minY)))) : 15);
-      this.__object.position.setY(-deltaY);
+      // deltaY in some cases can make object out of screen height
+      //console.log(deltaY, height, minY, maxY);
+      if (options.XY) {//IMPROVMENT setXY mannually
+          if (options.XY.X) {
+              this.__object.position.setX(options.XY.X);
+          }
+          if (options.XY.Y) {
+              this.__object.position.setY(options.XY.Y);
+          }
+      } else {
+          this.__object.position.setY(-deltaY);
+      }
 
       // If object is too large to fit in, make camera look further
       // 500 (default camera distance) : 466 (view height)
@@ -559,9 +600,15 @@
         iconGrid.appendChild(rotator);
 
         // Append to container
-        this.container.appendChild(this.__viewer);
-        this.__viewer.appendChild(iconGrid);
-        this.__viewer.appendChild(progress);
+        if (this.options.viewer.notappend) {//IMPROVED not append a new canvas put in same
+            $(this.container).html(this.__viewer);
+            this.__viewer.appendChild(iconGrid);
+            this.__viewer.appendChild(progress);
+        } else {
+            this.container.appendChild(this.__viewer);
+            this.__viewer.appendChild(iconGrid);
+            this.__viewer.appendChild(progress);
+        }
         this.adaptViewerTheme();
       }
     };
@@ -809,6 +856,40 @@
       this.__rotating && this.rotateObjectZ(-1);
       this.__renderer.render(this.__scene, this.__camera);
     };
+    
+    // Move object in xy //IMPROVED
+    let oldX = 0, oldY = 0;
+    Madeleine.prototype.moveObject = function ($event, delta) {
+        if (this.__movable) {
+            let directionX = 0, directionY = 0, diffX = 0, diffY = 0;
+            let offsetmove = options.MOVE_FACTOR || 3;
+
+            if ($event.pageX < oldX) {
+                directionX = "left"
+                diffX = oldX - $event.pageX;
+            } else if ($event.pageX > oldX) {
+                directionX = "right"
+                diffX = $event.pageX - oldX;
+            }
+
+            if ($event.pageY < oldY) {
+                directionY = "top"
+                diffY = oldY - $event.pageY;
+            } else if ($event.pageY > oldY) {
+                directionY = "bottom";
+                diffY = $event.pageY - oldY;
+            }
+
+            oldX = $event.pageX;
+            oldY = $event.pageY;
+
+            if (directionX == "left") this.__object.position.x -= offsetmove;
+            if (directionX == "right") this.__object.position.x += offsetmove;
+
+            if (directionY == "bottom") this.__object.position.y -= offsetmove;
+            if (directionY == "top") this.__object.position.y += offsetmove;
+        }
+    };
 
     // Rotate object in X direction
     Madeleine.prototype.rotateObjectX = function(delta) {
@@ -1009,6 +1090,13 @@
       directionalLight.shadowBias = -0.005;
       directionalLight.shadowDarkness = 0.15;
     };
+    
+    //Set position
+    Madeleine.prototype.setXY = function (X, Y) {//IMPROVED
+        this.__object.position.setY(Y);
+        this.__object.position.setX(X);
+
+    }
 
     return new Madeleine(options);
 
@@ -1161,6 +1249,11 @@
         var i, files = this.files;
         if (files.length) {
           for (i = 0; i < files.length; i++) {
+            //IMPROVED - Only accepts stl files and invoke callbackerror and throws new error
+            if (files[i].type != 'stl' && files[i].name.indexOf("stl") == -1) {
+                if (options.callbackerror) options.callbackerror({ code: 1001, msg: "Invalid File" });
+                throw new Error("Invalid Format File. Only Accepts STL!");
+            }
             // create Madeleine for each file
             var _options = window.Lily.extend({}, options, {type: "upload", data: files[i]});
             var madeleine = new Madeleine(_options);
