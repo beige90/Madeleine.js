@@ -27,6 +27,7 @@
 
     var OBJECT_MATERIAL   = "matt";
     var OBJECT_STATUS     = false;
+    var OBJECT_BACKGROUND = "DADADA";
     var OBJECT_COLOR      = "FF9900";
 
     var CAMERA_SIGHT     = 45;
@@ -97,20 +98,21 @@
       this.relPath    = options.path ? options.path + (options.path[options.path.length-1] == "/" ? "" : "/") : "./";
       // User configuration 
       this.options = Lily.extend(true, {}, { // Default option
-        material    : OBJECT_MATERIAL,
-        showStatus  : OBJECT_STATUS,
-        objectColor : OBJECT_COLOR,
+        material        : OBJECT_MATERIAL,
+        showStatus      : OBJECT_STATUS,
+        backgroundColor : OBJECT_BACKGROUND,
+        objectColor     : OBJECT_COLOR,
         viewer : {
-          create    : VIEWER_CREATE,  // Create new viewer?
-          prefix    : VIEWER_PREFIX,  // Viewer id prefix
-          height    : VIEWER_HEIGHT,  // Viewer height
-          width     : VIEWER_WIDTH,   // Viewer width
-          theme     : VIEWER_THEME,   // Viewer theme
+          create        : VIEWER_CREATE,  // Create new viewer?
+          prefix        : VIEWER_PREFIX,  // Viewer id prefix
+          height        : VIEWER_HEIGHT,  // Viewer height
+          width         : VIEWER_WIDTH,   // Viewer width
+          theme         : VIEWER_THEME,   // Viewer theme
         },
         camera : {
-          sight     : CAMERA_SIGHT,     // Vertical Field of View
-          near      : CAMERA_NEARFIELD, // Near Field Distance
-          far       : CAMERA_FARFIELD,  // Far Field Distance
+          sight         : CAMERA_SIGHT,     // Vertical Field of View
+          near          : CAMERA_NEARFIELD, // Near Field Distance
+          far           : CAMERA_FARFIELD,  // Far Field Distance
         },
         rotateSensitivity : USER_ROTATE_SENSITIVITY,
         zoomSensitivity   : USER_ZOOM_SENSITIVITY,
@@ -652,8 +654,8 @@
           this.options.objectColor = OBJECT_COLOR;
           break;
         default:
-          this.__viewer.style.background  = "#DADADA"; 
-          this.options.objectColor = "009999";
+          this.__viewer.style.background  = this.makeHexString(options.backgroundColor || OBJECT_BACKGROUND);
+          this.options.objectColor = options.objectColor || OBJECT_COLOR;
           break;
       }
 
