@@ -41,6 +41,7 @@
 
     var USER_ROTATE_SENSITIVITY = options.USER_ROTATE_SENSITIVITY || 0.005;//IMPROVED
     var USER_ZOOM_SENSITIVITY = options.USER_ZOOM_SENSITIVITY || 100;//IMPROVED
+    var SCROLL_FACTOR = 10;
     
     // Necessary option check 
     if (!document.getElementById(options.target)) {
@@ -113,17 +114,18 @@
           far       : CAMERA_FARFIELD,  // Far Field Distance
         },
         rotateSensitivity : USER_ROTATE_SENSITIVITY,
+        scrollFactor      : SCROLL_FACTOR,
         zoomSensitivity   : USER_ZOOM_SENSITIVITY,
       }, options);
 
       // Event Listeners
       this.scrollHandler = function(e) {
         var delta = e.wheelDelta ? e.wheelDelta/40 : (e.detail ? -e.detail : 0);
-        if (delta < 0) delta -= options.SCROLL_FACTOR;//IMPROVED
-        if (delta > 0) delta += options.SCROLL_FACTOR;//IMPROVED
+        if (delta < 0) delta -= this.options.scrollFactor;
+        if (delta > 0) delta += this.options.scrollFactor;
         scope.cameraZoom(delta);
         e.preventDefault();
-      };
+      }.bind(this);
       this.gestureHandler = function(e) {
         scope.cameraZoom(( 1 < e.scale ? "in" : "out" ));
         e.preventDefault();
