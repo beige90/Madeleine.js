@@ -27,6 +27,7 @@
 
     var OBJECT_MATERIAL   = "matt";
     var OBJECT_STATUS     = false;
+    var OBJECT_BACKGROUND = "DADADA";
     var OBJECT_COLOR      = "FF9900";
 
     var CAMERA_SIGHT     = 45;
@@ -41,6 +42,7 @@
 
     var USER_ROTATE_SENSITIVITY = 0.005;
     var USER_ZOOM_SENSITIVITY = 100;
+    var SCROLL_FACTOR = 10;
     
     // Necessary option check 
     if (!document.getElementById(options.target)) {
@@ -97,33 +99,35 @@
       this.relPath    = options.path ? options.path + (options.path[options.path.length-1] == "/" ? "" : "/") : "./";
       // User configuration 
       this.options = Lily.extend(true, {}, { // Default option
-        material    : OBJECT_MATERIAL,
-        showStatus  : OBJECT_STATUS,
-        objectColor : OBJECT_COLOR,
+        material        : OBJECT_MATERIAL,
+        showStatus      : OBJECT_STATUS,
+        backgroundColor : OBJECT_BACKGROUND,
+        objectColor     : OBJECT_COLOR,
         viewer : {
-          create    : VIEWER_CREATE,  // Create new viewer?
-          prefix    : VIEWER_PREFIX,  // Viewer id prefix
-          height    : VIEWER_HEIGHT,  // Viewer height
-          width     : VIEWER_WIDTH,   // Viewer width
-          theme     : VIEWER_THEME,   // Viewer theme
+          create        : VIEWER_CREATE,  // Create new viewer?
+          prefix        : VIEWER_PREFIX,  // Viewer id prefix
+          height        : VIEWER_HEIGHT,  // Viewer height
+          width         : VIEWER_WIDTH,   // Viewer width
+          theme         : VIEWER_THEME,   // Viewer theme
         },
         camera : {
-          sight     : CAMERA_SIGHT,     // Vertical Field of View
-          near      : CAMERA_NEARFIELD, // Near Field Distance
-          far       : CAMERA_FARFIELD,  // Far Field Distance
+          sight         : CAMERA_SIGHT,     // Vertical Field of View
+          near          : CAMERA_NEARFIELD, // Near Field Distance
+          far           : CAMERA_FARFIELD,  // Far Field Distance
         },
         rotateSensitivity : USER_ROTATE_SENSITIVITY,
+        scrollFactor      : SCROLL_FACTOR,
         zoomSensitivity   : USER_ZOOM_SENSITIVITY,
       }, options);
 
       // Event Listeners
       this.scrollHandler = function(e) {
         var delta = e.wheelDelta ? e.wheelDelta/40 : (e.detail ? -e.detail : 0);
-        if (delta < 0) delta -= options.SCROLL_FACTOR;//IMPROVED
-        if (delta > 0) delta += options.SCROLL_FACTOR;//IMPROVED
+        if (delta < 0) delta -= this.options.scrollFactor;
+        if (delta > 0) delta += this.options.scrollFactor;
         scope.cameraZoom(delta);
         e.preventDefault();
-      };
+      }.bind(this);
       this.gestureHandler = function(e) {
         scope.cameraZoom(( 1 < e.scale ? "in" : "out" ));
         e.preventDefault();
@@ -517,6 +521,8 @@
         this.container.style["min-height"] = this.__height+"px";
         this.__viewer.style["max-height"] = this.__height+"px";
         this.__viewer.style["min-height"] = this.__height+"px";
+        this.__viewer.style["max-width"] = this.__width+"px";
+        this.__viewer.style["min-width"] = this.__width+"px";
         this.__viewer.style.height = this.__height;
         this.__viewer.style.width = this.__width;
 
@@ -652,8 +658,8 @@
           this.options.objectColor = OBJECT_COLOR;
           break;
         default:
-          this.__viewer.style.background  = "#DADADA"; 
-          this.options.objectColor = "009999";
+          this.__viewer.style.background  = this.makeHexString(options.backgroundColor || OBJECT_BACKGROUND);
+          this.options.objectColor = options.objectColor || OBJECT_COLOR;
           break;
       }
 
