@@ -1,6 +1,6 @@
 # Madeleine.js
 
-Madeleine.js is a 3D Model parser & renderer for STL files (ASCII and binary both). 
+Madeleine.js is a 3D Model parser & renderer for STL files (ASCII and binary both).
 
 Madeleine.js uses [Three.js (r68)](http://github.com/mrdoob/three.js) as its 3D Engine, and was inspired by the demo code of [tonylukasavage](https://github.com/tonylukasavage/jsstl).
 
@@ -23,11 +23,11 @@ Madeleine.js is smart enough to distinguish whether stl files are ASCII or binar
 
 ## DEMO
 
-Visit [DEMO Website](http://jinjunho.github.io/Madeleine.js/) to see the demo!
+Visit [DEMO Website](http://beige90.github.io/Madeleine.js/) to see the demo!
 
-For developers, [download](https://github.com/JinJunho/Madeleine.js/archive/master.zip) or clone this repository and locate it on your web server root. You can check working demo by visiting **repo/examples/index.html** from your browser. Download any stl file and see how well it works!
+For developers, [download](https://github.com/beige90/Madeleine.js/archive/master.zip) or clone this repository and locate it on your web server root. You can check working demo by visiting **repo/examples/index.html** from your browser. Download any stl file and see how well it works!
 
-## Getting Started 
+## Getting Started
 
 First, include resources into <head> element of your code.
 
@@ -56,7 +56,7 @@ window.onload = function(){
         file: 'files',  // file input id
         path: '../src' // path to source directory from current html file
     });
-}; 
+};
 </script>
 ```
 
@@ -74,7 +74,7 @@ window.onload = function(){
       data: 'path/to/file.stl', // data path
       path: '../src' // path to source directory from current html file
     });
-}; 
+};
 </script>
 ```
 
